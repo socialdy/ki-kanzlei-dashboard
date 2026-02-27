@@ -12,6 +12,7 @@ export interface ScraperResult {
   phone: string | null;
   website: string | null;
   address: string | null;
+  street: string | null;
   city: string | null;
   postal_code: string | null;
   country: string;
@@ -412,6 +413,7 @@ export class GooglePlacesLangSearchProvider implements ScraperProvider {
       phone: bestPhone,
       website,
       address: place.formattedAddress || null,
+      street: addressParts.street || null,
       city: addressParts.city || location,
       postal_code: addressParts.postalCode || null,
       country: addressParts.country || country,
@@ -442,31 +444,45 @@ export class GooglePlacesLangSearchProvider implements ScraperProvider {
 
   /* ── Adresse parsen ── */
   private parseAddress(address: string, defaultCountry: string): {
+    street: string | null;
     city: string | null;
     postalCode: string | null;
     country: string;
   } {
-    if (!address) return { city: null, postalCode: null, country: defaultCountry };
+    if (!address) return { street: null, city: null, postalCode: null, country: defaultCountry };
 
-    // Österreich/Deutschland: "Straße 1, 5400 Hallein, Österreich"
-    const atDeMatch = address.match(/(\d{4,5})\s+([^,]+)/);
-    if (atDeMatch) {
-      const postalCode = atDeMatch[1];
-      const city = atDeMatch[2].trim();
-
-      let country = defaultCountry;
-      if (address.toLowerCase().includes("österreich") || address.toLowerCase().includes("austria")) {
-        country = "AT";
-      } else if (address.toLowerCase().includes("deutschland") || address.toLowerCase().includes("germany")) {
-        country = "DE";
-      } else if (address.toLowerCase().includes("schweiz") || address.toLowerCase().includes("switzerland")) {
-        country = "CH";
-      }
-
-      return { city, postalCode, country };
+    // Land erkennen
+    let country = defaultCountry;
+    const lower = address.toLowerCase();
+    if (lower.includes("österreich") || lower.includes("austria")) {
+      country = "AT";
+    } else if (lower.includes("deutschland") || lower.includes("germany")) {
+      country = "DE";
+    } else if (lower.includes("schweiz") || lower.includes("switzerland")) {
+      country = "CH";
     }
 
-    return { city: null, postalCode: null, country: defaultCountry };
+    // Typisches Format: "Musterstraße 1, 5400 Hallein, Österreich"
+    // oder: "Musterstraße 1, 5400 Hallein"
+    const parts = address.split(",").map((p) => p.trim());
+
+    // Straße ist typischerweise der erste Teil (vor dem ersten Komma)
+    const street = parts[0] || null;
+
+    // PLZ + Stadt aus dem Teil mit der Zahl
+    let postalCode: string | null = null;
+    let city: string | null = null;
+
+    for (const part of parts.slice(1)) {
+      const plzMatch = part.match(/^(\d{4,5})\s+(.+)/);
+      if (plzMatch) {
+        postalCode = plzMatch[1];
+        city = plzMatch[2].trim();
+        break;
+      }
+    }
+
+    return { street, city, postalCode, country };
   }
 
   /* ── Fallback: Basis-Daten ohne Enrichment ── */
@@ -484,6 +500,7 @@ export class GooglePlacesLangSearchProvider implements ScraperProvider {
       phone: place.internationalPhoneNumber || place.nationalPhoneNumber || null,
       website: (place.websiteUri || "").replace(/\/$/, "") || null,
       address: place.formattedAddress || null,
+      street: addressParts.street || null,
       city: addressParts.city || location,
       postal_code: addressParts.postalCode || null,
       country: addressParts.country || country,
@@ -670,7 +687,8 @@ export class MockScraperProvider implements ScraperProvider {
           ? `+43 ${randomInt(1, 6)}${randomInt(60, 99)} ${randomInt(1000000, 9999999)}`
           : `+49 ${randomInt(30, 89)} ${randomInt(1000000, 9999999)}`,
         website: `https://www.${websiteName}${tld}`,
-        address: street,
+        address: `${street}, ${postalCode} ${location}`,
+        street,
         city: location,
         postal_code: postalCode,
         country,

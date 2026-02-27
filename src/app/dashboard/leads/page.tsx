@@ -8,13 +8,23 @@ import {
   Download,
   RefreshCw,
   InboxIcon,
+  X,
+  Filter,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Pagination,
   PaginationContent,
@@ -31,9 +41,11 @@ import { LeadEditSheet } from "@/components/leads/LeadEditSheet";
 import { LeadDeleteDialog } from "@/components/leads/LeadDeleteDialog";
 import { SearchJobsList } from "@/components/leads/SearchJobsList";
 import { LeadSearchForm } from "@/components/leads/LeadSearchForm";
+import { IndustryCombobox } from "@/components/leads/IndustryCombobox";
 import type { SearchFormValues } from "@/components/leads/LeadSearchForm";
 
 import type { Lead, LeadStatus, SearchJob } from "@/types/leads";
+import { countryLabel } from "@/types/leads";
 
 const PAGE_SIZE = 20;
 
@@ -45,7 +57,8 @@ function exportLeadsToCSV(leads: Lead[]): void {
   }
 
   const headers = [
-    "Firma", "Name/GF", "Branche", "Adresse", "PLZ", "Ort", "Land",
+    "Firma", "Name/GF", "Titel", "Anrede", "Branche", "Rechtsform",
+    "Straße", "PLZ", "Ort", "Land",
     "Telefon", "E-Mail", "Website", "Status",
     "LinkedIn", "Facebook", "Instagram", "Xing", "Twitter/X", "YouTube", "TikTok",
   ];
@@ -61,10 +74,13 @@ function exportLeadsToCSV(leads: Lead[]): void {
 
   const rows = leads.map((lead) => {
     const statusLabel = LEAD_STATUS_CONFIG[lead.status]?.label ?? lead.status;
+    const genderLabel = lead.ceo_gender === "herr" ? "Herr" : lead.ceo_gender === "frau" ? "Frau" : "";
     return [
       escapeCSV(lead.company), escapeCSV(lead.ceo_name ?? lead.name),
-      escapeCSV(lead.category ?? lead.industry), escapeCSV(lead.address),
-      escapeCSV(lead.postal_code), escapeCSV(lead.city), escapeCSV(lead.country),
+      escapeCSV(lead.ceo_title), escapeCSV(genderLabel),
+      escapeCSV(lead.category ?? lead.industry), escapeCSV(lead.legal_form),
+      escapeCSV(lead.street ?? lead.address),
+      escapeCSV(lead.postal_code), escapeCSV(lead.city), escapeCSV(countryLabel(lead.country)),
       escapeCSV(lead.phone), escapeCSV(lead.email), escapeCSV(lead.website),
       escapeCSV(statusLabel),
       escapeCSV(lead.social_linkedin), escapeCSV(lead.social_facebook),
@@ -100,6 +116,17 @@ function buildPageNumbers(current: number, total: number): (number | "…")[] {
   return [1, "…", current - 1, current, current + 1, "…", total];
 }
 
+/* ── Status-Liste für Filter ── */
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all",       label: "Alle Status" },
+  { value: "new",       label: "Neu" },
+  { value: "enriched",  label: "Angereichert" },
+  { value: "contacted", label: "Kontaktiert" },
+  { value: "qualified", label: "Qualifiziert" },
+  { value: "converted", label: "Konvertiert" },
+  { value: "closed",    label: "Geschlossen" },
+];
+
 /* ══════════════════════════════════════════════════════════════
    Hauptkomponente
    ══════════════════════════════════════════════════════════════ */
@@ -122,11 +149,33 @@ export default function LeadScrapingPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteIds, setDeleteIds]   = useState<string[]>([]);
 
+  /* ── Filter State ── */
+  const [filterSearch, setFilterSearch]     = useState("");
+  const [filterStatus, setFilterStatus]     = useState("all");
+  const [filterIndustry, setFilterIndustry] = useState<string | undefined>(undefined);
+  const [filterCity, setFilterCity]         = useState("");
+
+  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry || filterCity;
+
+  function resetFilters() {
+    setFilterSearch("");
+    setFilterStatus("all");
+    setFilterIndustry(undefined);
+    setFilterCity("");
+    setLeadsPage(1);
+  }
+
   /* ── Data fetching ── */
   const fetchLeads = useCallback(async (page = 1) => {
     setLeadsLoading(true);
     try {
-      const res = await fetch(`/api/leads?page=${page}&limit=${PAGE_SIZE}`);
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (filterSearch) params.set("search", filterSearch);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterIndustry) params.set("industry", filterIndustry);
+      if (filterCity) params.set("city", filterCity);
+
+      const res = await fetch(`/api/leads?${params.toString()}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
       setLeads(json.data ?? []);
@@ -136,7 +185,7 @@ export default function LeadScrapingPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, []);
+  }, [filterSearch, filterStatus, filterIndustry, filterCity]);
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -157,8 +206,25 @@ export default function LeadScrapingPage() {
     fetchJobs();
   }, [fetchLeads, fetchJobs]);
 
+  // Re-fetch when filters change (reset to page 1)
+  useEffect(() => {
+    setLeadsPage(1);
+    fetchLeads(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, filterIndustry]);
+
+  /* ── Debounced text-filter fetch ── */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLeadsPage(1);
+      fetchLeads(1);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterSearch, filterCity]);
+
   /* ── Polling + Stale-Job-Timeout ── */
-  const STALE_JOB_TIMEOUT_MS = 10 * 60 * 1000; // 10 Minuten
+  const STALE_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 
   useEffect(() => {
     const activeJobs = searchJobs.filter(
@@ -173,14 +239,12 @@ export default function LeadScrapingPage() {
         searchJobs.map(async (job) => {
           if (job.status !== "pending" && job.status !== "running") return job;
 
-          // Timeout: Job hängt zu lange (n8n schläft / Workflow fehlt)
           const jobAge = now - new Date(job.created_at).getTime();
           if (jobAge > STALE_JOB_TIMEOUT_MS) {
             hasChanges = true;
             toast.error(
               `Suche "${job.query}" abgebrochen — Zeitüberschreitung (n8n Workflow nicht erreichbar)`,
             );
-            // Server-seitig als failed markieren
             fetch(`/api/leads/search/${job.id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
@@ -339,7 +403,7 @@ export default function LeadScrapingPage() {
   return (
     <div className="space-y-5">
 
-      {/* ── Page Header ── */}
+      {/* Page Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -347,10 +411,10 @@ export default function LeadScrapingPage() {
         </p>
       </div>
 
-      {/* ── Suchformular ── */}
+      {/* Suchformular */}
       <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} />
 
-      {/* ── Tabs ── */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
         <div className="flex items-center justify-between">
           <TabsList className="h-9">
@@ -400,19 +464,82 @@ export default function LeadScrapingPage() {
           )}
         </div>
 
-        {/* ── Tab: Suchaufträge ── */}
+        {/* Tab: Suchaufträge */}
         <TabsContent value="search" className="mt-3">
           <SearchJobsList jobs={searchJobs} loading={jobsLoading} />
         </TabsContent>
 
-        {/* ── Tab: Alle Leads ── */}
+        {/* Tab: Alle Leads */}
         <TabsContent value="leads" className="mt-3">
           <div className="rounded-lg border bg-card overflow-hidden">
+
+            {/* Filter-Leiste */}
+            <div className="px-4 py-3 border-b bg-muted/20 space-y-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs font-medium text-muted-foreground">Filter</span>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-muted-foreground ml-auto"
+                    onClick={resetFilters}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                {/* Textsuche */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Suche (Firma, Name, E-Mail...)"
+                    className="h-8 pl-8 text-xs"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                  />
+                </div>
+
+                {/* Status */}
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_FILTER_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Branche */}
+                <IndustryCombobox
+                  value={filterIndustry}
+                  onChange={(val) => setFilterIndustry(val ?? undefined)}
+                  placeholder="Branche filtern"
+                />
+
+                {/* Stadt */}
+                <Input
+                  placeholder="Stadt / Ort"
+                  className="h-8 text-xs"
+                  value={filterCity}
+                  onChange={(e) => setFilterCity(e.target.value)}
+                />
+              </div>
+            </div>
 
             {/* Count-Bar */}
             <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 {leadsCount.toLocaleString("de-DE")} Einträge gesamt
+                {hasActiveFilters && (
+                  <span className="ml-1 text-primary">(gefiltert)</span>
+                )}
                 {selectedIds.size > 0 && (
                   <span className="ml-2 text-primary font-medium">
                     · {selectedIds.size} ausgewählt
@@ -433,10 +560,19 @@ export default function LeadScrapingPage() {
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mb-3">
                   <InboxIcon className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="text-sm font-semibold mb-1">Noch keine Leads</h3>
+                <h3 className="text-sm font-semibold mb-1">
+                  {hasActiveFilters ? "Keine Ergebnisse" : "Noch keine Leads"}
+                </h3>
                 <p className="text-sm text-muted-foreground text-center max-w-xs">
-                  Starte eine Suche, um Leads zu importieren.
+                  {hasActiveFilters
+                    ? "Passe die Filter an oder setze sie zurück."
+                    : "Starte eine Suche, um Leads zu importieren."}
                 </p>
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={resetFilters}>
+                    Filter zurücksetzen
+                  </Button>
+                )}
               </div>
             ) : (
               <>
@@ -449,7 +585,7 @@ export default function LeadScrapingPage() {
                   onStatusChange={handleRowStatusChange}
                 />
 
-                {/* ── Pagination ── */}
+                {/* Pagination */}
                 {totalPages > 1 && (
                   <>
                     <Separator />
@@ -504,7 +640,7 @@ export default function LeadScrapingPage() {
         </TabsContent>
       </Tabs>
 
-      {/* ── Selection Bar (fixed bottom) ── */}
+      {/* Selection Bar (fixed bottom) */}
       <LeadSelectionBar
         selectedCount={selectedIds.size}
         onClear={() => setSelectedIds(new Set())}
@@ -513,7 +649,7 @@ export default function LeadScrapingPage() {
         onStatusChange={handleBulkStatusChange}
       />
 
-      {/* ── Edit Sheet ── */}
+      {/* Edit Sheet */}
       <LeadEditSheet
         lead={editLead}
         open={editOpen}
@@ -521,7 +657,7 @@ export default function LeadScrapingPage() {
         onSaved={handleSaved}
       />
 
-      {/* ── Delete Dialog ── */}
+      {/* Delete Dialog */}
       <LeadDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

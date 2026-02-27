@@ -239,6 +239,36 @@ export type SearchJobInsert = Omit<SearchJob, "id" | "created_at" | "updated_at"
   radius_km?: number;
 };
 
+/* ── Länder-Mapping (n8n liefert ISO-Codes, Frontend zeigt ausgeschrieben) ── */
+export const COUNTRY_MAP: Record<string, string> = {
+  AT: "Österreich",
+  DE: "Deutschland",
+  CH: "Schweiz",
+  LI: "Liechtenstein",
+  IT: "Italien",
+  HU: "Ungarn",
+  CZ: "Tschechien",
+  SK: "Slowakei",
+  SI: "Slowenien",
+  PL: "Polen",
+  NL: "Niederlande",
+  BE: "Belgien",
+  FR: "Frankreich",
+  LU: "Luxemburg",
+};
+
+/** ISO-Code → Anzeigename */
+export function countryLabel(code: string | null | undefined): string {
+  if (!code) return "—";
+  return COUNTRY_MAP[code.toUpperCase()] ?? code;
+}
+
+/** Anzeigename → ISO-Code (für Select-Dropdown) */
+export const COUNTRY_OPTIONS = Object.entries(COUNTRY_MAP).map(([value, label]) => ({
+  value,
+  label,
+}));
+
 /* Rechtsform-Filter */
 export const COMPANY_TYPE_OPTIONS = [
   { value: "all", label: "Alle Rechtsformen" },

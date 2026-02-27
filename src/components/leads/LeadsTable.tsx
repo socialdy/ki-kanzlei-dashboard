@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Lead, LeadStatus } from "@/types/leads";
+import { countryLabel } from "@/types/leads";
 
 /* ── Status config ── */
 export const LEAD_STATUS_CONFIG: Record<
@@ -199,17 +200,35 @@ export function LeadsTable({
 
                 {/* Branche */}
                 <TableCell className="py-2 px-3 text-xs text-muted-foreground">
-                  {lead.category ?? lead.industry ?? "—"}
+                  {lead.industry ?? "—"}
                 </TableCell>
 
                 {/* Ort */}
                 <TableCell className="py-2 px-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="truncate max-w-[100px]">
-                      {[lead.postal_code, lead.city].filter(Boolean).join(" ") || "—"}
-                    </span>
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <div className="min-w-0">
+                          <span className="truncate block max-w-[110px]">
+                            {[lead.postal_code, lead.city].filter(Boolean).join(" ") || "—"}
+                          </span>
+                          {lead.country && (
+                            <span className="text-[10px] text-muted-foreground/60 truncate block max-w-[110px]">
+                              {countryLabel(lead.country)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-xs space-y-0.5">
+                        {(lead.street || lead.address) && <p>{lead.street ?? lead.address}</p>}
+                        <p>{[lead.postal_code, lead.city].filter(Boolean).join(" ")}</p>
+                        {lead.country && <p>{countryLabel(lead.country)}</p>}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
 
                 {/* Kontakt */}

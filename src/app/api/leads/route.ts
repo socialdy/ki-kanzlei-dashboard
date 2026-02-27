@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get("status");
     const searchQuery = searchParams.get("search_query");
     const search = searchParams.get("search");
+    const industry = searchParams.get("industry");
+    const city = searchParams.get("city");
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "20", 10);
 
@@ -64,6 +66,8 @@ export async function GET(request: NextRequest) {
         status: statusParam as LeadStatus | undefined,
         search_query: searchQuery ?? undefined,
         search: search ?? undefined,
+        industry: industry ?? undefined,
+        city: city ?? undefined,
       },
       { page, pageSize: limit },
     );
