@@ -157,7 +157,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.item.json;\nconst webPages = item.data?.webPages?.value || item.webPages?.value || [];\n\nconst snippets = webPages\n  .slice(0, 10)\n  .map(function(r) { return (r.name || '') + ': ' + (r.snippet || '') + ' ' + (r.summary || ''); })\n  .join('\\n');\n\nconst prevData = $('7e. Parse HTML + Social').item.json;\n\nreturn [{\n  ...prevData,\n  search_snippets: snippets || 'Keine Suchergebnisse gefunden'\n}];"
+        "jsCode": "const item = $input.item.json;\nconst webPages = item.data?.webPages?.value || item.webPages?.value || [];\n\nconst snippets = webPages\n  .slice(0, 10)\n  .map(function(r) { return (r.name || '') + ': ' + (r.snippet || '') + ' ' + (r.summary || ''); })\n  .join('\\n');\n\nconst prevData = $('6. Loop Companies').item.json;\n\nreturn [{\n  ...prevData,\n  search_snippets: snippets || 'Keine Suchergebnisse gefunden'\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -208,7 +208,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiResponse = $input.item.json.output || $input.item.json.text || '';\nconst prevData = $('9. Parse LangSearch Results').item.json;\n\nvar data = {};\ntry {\n  var cleaned = aiResponse.replace(/```json\\n?|```/g, '').trim();\n  data = JSON.parse(cleaned);\n} catch (e) {\n  console.error('JSON Parse Error:', e.message);\n  data = {};\n}\n\n// Rechtsform-Filter prüfen\nvar companyTypeFilter = prevData._company_type || 'all';\nif (companyTypeFilter !== 'all') {\n  var legalForm = (data.legal_form || '').toLowerCase();\n  var companyName = (data.company_name || prevData.name || '').toLowerCase();\n  var filterMap = {\n    'gmbh': ['gmbh'],\n    'eu': ['e.u.', 'e.u', 'einzelunternehmen'],\n    'ag': ['ag', 'aktiengesellschaft'],\n    'og': ['og', 'offene gesellschaft'],\n    'kg': ['kg', 'kommanditgesellschaft'],\n    'gmbh_cokg': ['gmbh & co kg', 'gmbh & co. kg', 'gmbh &amp; co kg']\n  };\n  var keywords = filterMap[companyTypeFilter] || [];\n  var matches = keywords.some(function(kw) {\n    return legalForm.indexOf(kw) !== -1 || companyName.indexOf(kw) !== -1;\n  });\n  if (!matches) {\n    console.log('Skip (Rechtsform): ' + (data.company_name || prevData.name));\n    return [{ _has_lead: false, _skip_reason: 'rechtsform' }];\n  }\n}\n\n// Kein echter Email-Fund → Lead überspringen\nconst finalEmail = data.email || (prevData.emails_found && prevData.emails_found[0]) || null;\nif (!finalEmail) {\n  console.log('Skip (no email): ' + (data.company_name || prevData.name));\n  return [{ _has_lead: false, _skip_reason: 'no_email' }];\n}\n\n// ceo_gender normalisieren\nfunction normalizeGender(g) {\n  if (!g) return 'unbekannt';\n  var v = g.toLowerCase().trim();\n  if (['herr', 'maennlich', 'männlich', 'male', 'm'].includes(v)) return 'herr';\n  if (['frau', 'weiblich', 'female', 'w', 'f'].includes(v)) return 'frau';\n  if (['divers', 'x', 'nonbinary'].includes(v)) return 'divers';\n  return 'unbekannt';\n}\n\n// ceo_name aus Teilen zusammenbauen\nvar ceoParts = [];\nif (data.ceo_title) ceoParts.push(data.ceo_title);\nif (data.ceo_first_name) ceoParts.push(data.ceo_first_name);\nif (data.ceo_last_name) ceoParts.push(data.ceo_last_name);\nvar ceoName = ceoParts.length >= 2 ? ceoParts.join(' ') : null;\n\nreturn [{\n  _has_lead: true,\n  user_id: prevData.user_id,\n  search_job_id: prevData.job_id,\n  search_query: prevData.search_query,\n  search_location: prevData.search_location,\n  name: data.company_name || prevData.name,\n  company: data.company_name || prevData.name,\n  company_name: data.company_name || prevData.name,\n  industry: data.industry || prevData.category || null,\n  legal_form: data.legal_form || null,\n  address: prevData.address,\n  street: data.street || null,\n  city: data.city || null,\n  postal_code: data.postal_code || null,\n  country: data.country || prevData.country || null,\n  phone: data.phone || prevData.phone || null,\n  email: finalEmail,\n  website: prevData.website,\n  ceo_name: ceoName,\n  ceo_title: data.ceo_title || null,\n  ceo_first_name: data.ceo_first_name || null,\n  ceo_last_name: data.ceo_last_name || null,\n  ceo_gender: normalizeGender(data.ceo_gender),\n  ceo_source: data.ceo_source || 'unknown',\n  google_place_id: prevData.google_place_id,\n  google_rating: prevData.google_rating,\n  google_reviews_count: prevData.google_reviews_count,\n  social_linkedin: prevData.social_linkedin || null,\n  social_facebook: prevData.social_facebook || null,\n  social_instagram: prevData.social_instagram || null,\n  social_xing: prevData.social_xing || null,\n  social_twitter: prevData.social_twitter || null,\n  social_youtube: prevData.social_youtube || null,\n  social_tiktok: prevData.social_tiktok || null,\n  status: 'new',\n  raw_data: {\n    ai_response: data,\n    emails_found: prevData.emails_found,\n    phones_found: prevData.phones_found,\n    pages_loaded: prevData.pages_loaded,\n    confidence_score: data.confidence_score || 0\n  },\n  _job_id: prevData.job_id\n}];"
+        "jsCode": "const aiResponse = $input.item.json.output || $input.item.json.text || '';\nconst prevData = $('9b. Merge Web + Search').item.json;\n\nvar data = {};\ntry {\n  var cleaned = aiResponse.replace(/```json\\n?|```/g, '').trim();\n  data = JSON.parse(cleaned);\n} catch (e) {\n  console.error('JSON Parse Error:', e.message);\n  data = {};\n}\n\n// Rechtsform-Filter prüfen\nvar companyTypeFilter = prevData._company_type || 'all';\nif (companyTypeFilter !== 'all') {\n  var legalForm = (data.legal_form || '').toLowerCase();\n  var companyName = (data.company_name || prevData.name || '').toLowerCase();\n  var filterMap = {\n    'gmbh': ['gmbh'],\n    'eu': ['e.u.', 'e.u', 'einzelunternehmen'],\n    'ag': ['ag', 'aktiengesellschaft'],\n    'og': ['og', 'offene gesellschaft'],\n    'kg': ['kg', 'kommanditgesellschaft'],\n    'gmbh_cokg': ['gmbh & co kg', 'gmbh & co. kg', 'gmbh &amp; co kg']\n  };\n  var keywords = filterMap[companyTypeFilter] || [];\n  var matches = keywords.some(function(kw) {\n    return legalForm.indexOf(kw) !== -1 || companyName.indexOf(kw) !== -1;\n  });\n  if (!matches) {\n    console.log('Skip (Rechtsform): ' + (data.company_name || prevData.name));\n    return [{ _has_lead: false, _skip_reason: 'rechtsform' }];\n  }\n}\n\n// Kein echter Email-Fund → Lead überspringen\nconst finalEmail = data.email || (prevData.emails_found && prevData.emails_found[0]) || null;\nif (!finalEmail) {\n  console.log('Skip (no email): ' + (data.company_name || prevData.name));\n  return [{ _has_lead: false, _skip_reason: 'no_email' }];\n}\n\n// ceo_gender normalisieren\nfunction normalizeGender(g) {\n  if (!g) return 'unbekannt';\n  var v = g.toLowerCase().trim();\n  if (['herr', 'maennlich', 'männlich', 'male', 'm'].includes(v)) return 'herr';\n  if (['frau', 'weiblich', 'female', 'w', 'f'].includes(v)) return 'frau';\n  if (['divers', 'x', 'nonbinary'].includes(v)) return 'divers';\n  return 'unbekannt';\n}\n\n// ceo_name aus Teilen zusammenbauen\nvar ceoParts = [];\nif (data.ceo_title) ceoParts.push(data.ceo_title);\nif (data.ceo_first_name) ceoParts.push(data.ceo_first_name);\nif (data.ceo_last_name) ceoParts.push(data.ceo_last_name);\nvar ceoName = ceoParts.length >= 2 ? ceoParts.join(' ') : null;\n\nreturn [{\n  _has_lead: true,\n  user_id: prevData.user_id,\n  search_job_id: prevData.job_id,\n  search_query: prevData.search_query,\n  search_location: prevData.search_location,\n  name: data.company_name || prevData.name,\n  company: data.company_name || prevData.name,\n  company_name: data.company_name || prevData.name,\n  industry: data.industry || prevData.category || null,\n  legal_form: data.legal_form || null,\n  address: prevData.address,\n  street: data.street || null,\n  city: data.city || null,\n  postal_code: data.postal_code || null,\n  country: data.country || prevData.country || null,\n  phone: data.phone || prevData.phone || null,\n  email: finalEmail,\n  website: prevData.website,\n  ceo_name: ceoName,\n  ceo_title: data.ceo_title || null,\n  ceo_first_name: data.ceo_first_name || null,\n  ceo_last_name: data.ceo_last_name || null,\n  ceo_gender: normalizeGender(data.ceo_gender),\n  ceo_source: data.ceo_source || 'unknown',\n  google_place_id: prevData.google_place_id,\n  google_rating: prevData.google_rating,\n  google_reviews_count: prevData.google_reviews_count,\n  social_linkedin: prevData.social_linkedin || null,\n  social_facebook: prevData.social_facebook || null,\n  social_instagram: prevData.social_instagram || null,\n  social_xing: prevData.social_xing || null,\n  social_twitter: prevData.social_twitter || null,\n  social_youtube: prevData.social_youtube || null,\n  social_tiktok: prevData.social_tiktok || null,\n  status: 'new',\n  raw_data: {\n    ai_response: data,\n    emails_found: prevData.emails_found,\n    phones_found: prevData.phones_found,\n    pages_loaded: prevData.pages_loaded,\n    confidence_score: data.confidence_score || 0\n  },\n  _job_id: prevData.job_id\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -499,6 +499,20 @@
       ],
       "id": "81dc92ea-6840-45aa-a369-229ecc531f14",
       "name": "11a. Has Lead?"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        19860,
+        160
+      ],
+      "id": "b3c4d5e6-f7a8-9012-bcde-f01234567890",
+      "name": "9b. Merge Web + Search"
     }
   ],
   "pinData": {},
@@ -507,7 +521,7 @@
       "main": [
         [
           {
-            "node": "8. LangSearch: Find CEO",
+            "node": "9b. Merge Web + Search",
             "type": "main",
             "index": 0
           }
@@ -577,6 +591,11 @@
             "node": "7a. Prepare URL",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "8. LangSearch: Find CEO",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -593,6 +612,17 @@
       ]
     },
     "9. Parse LangSearch Results": {
+      "main": [
+        [
+          {
+            "node": "9b. Merge Web + Search",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "9b. Merge Web + Search": {
       "main": [
         [
           {

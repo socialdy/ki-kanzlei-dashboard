@@ -67,7 +67,12 @@
       "Bash(python3:*)",
       "Bash(node:*)",
       "WebFetch(domain:www.calouba.at)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "mcp__claude_ai_Supabase__list_migrations"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ]
 }
