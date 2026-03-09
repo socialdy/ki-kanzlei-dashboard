@@ -23,6 +23,7 @@ interface IndustryComboboxProps {
   onChange: (value: string | undefined) => void;
   placeholder?: string;
   className?: string;
+  options?: { value: string; label: string }[];
 }
 
 export function IndustryCombobox({
@@ -30,12 +31,15 @@ export function IndustryCombobox({
   onChange,
   placeholder = "Branche wählen",
   className,
+  options,
 }: IndustryComboboxProps) {
   const [open, setOpen] = useState(false);
 
+  const items = options ?? INDUSTRY_OPTIONS;
+
   // Find label for current value — fall back to raw DB value for legacy entries
   const currentLabel =
-    INDUSTRY_OPTIONS.find((opt) => opt.value === value)?.label ?? value;
+    items.find((opt) => opt.value === value)?.label ?? value;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,7 +61,7 @@ export function IndustryCombobox({
           <CommandInput placeholder="Branche suchen..." />
           <CommandList className="max-h-60 overflow-y-auto">
             <CommandEmpty>Keine Branche gefunden</CommandEmpty>
-            {INDUSTRY_OPTIONS.map((opt) => (
+            {items.map((opt) => (
               <CommandItem
                 key={opt.value}
                 value={opt.label}

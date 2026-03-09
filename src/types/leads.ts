@@ -56,6 +56,9 @@ export interface Lead {
   social_youtube: string | null;
   social_tiktok: string | null;
 
+  /* Notizen */
+  notes: string | null;
+
   /* Suche & Status */
   status: LeadStatus;
   search_query: string | null;
@@ -80,7 +83,7 @@ export type LeadUpdate = Partial<Pick<Lead,
   | "address" | "street" | "city" | "postal_code" | "country"
   | "category" | "industry" | "legal_form" | "employee_count"
   | "ceo_name" | "ceo_title" | "ceo_first_name" | "ceo_last_name" | "ceo_gender" | "ceo_source"
-  | "status"
+  | "status" | "notes"
   | "social_linkedin" | "social_facebook" | "social_instagram"
   | "social_xing" | "social_twitter" | "social_youtube" | "social_tiktok"
 >>;

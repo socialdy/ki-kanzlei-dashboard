@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-    LayoutDashboard, Users, Mail,
+    LayoutDashboard, Users, Send, Linkedin,
     Settings, ChevronsUpDown,
     LogOut, BadgeCheck, Bell, Loader2,
 } from "lucide-react";
@@ -29,7 +29,8 @@ import { createClient } from "@/lib/supabase/client";
 const mainNav = [
     { name: "Dashboard",  href: "/dashboard",                icon: LayoutDashboard },
     { name: "Leads",      href: "/dashboard/leads",          icon: Users           },
-    { name: "Emails",     href: "/dashboard/email-outreach", icon: Mail            },
+    { name: "Kampagnen",  href: "/dashboard/campaigns",      icon: Send            },
+    { name: "LinkedIn",   href: "/dashboard/linkedin",       icon: Linkedin        },
 ];
 
 const systemNav = [
@@ -91,19 +92,25 @@ export function AppSidebar({ user }: AppSidebarProps) {
                             className="hover:bg-transparent active:bg-transparent"
                         >
                             <Link href="/dashboard" className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center">
+                                <div className="h-8 w-8 rounded-lg overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center">
                                     <Image
                                         src="/images/KI-Kanzlei_Logo_2026.png"
                                         alt="KI Kanzlei"
-                                        width={32}
-                                        height={32}
-                                        className="h-8 w-8 object-cover rounded-full"
+                                        width={64}
+                                        height={64}
+                                        quality={100}
+                                        className="h-8 w-8 object-cover"
                                         priority
                                     />
                                 </div>
-                                <span className="text-sm font-bold text-white tracking-tight group-data-[collapsible=icon]:hidden">
-                                    KI Kanzlei
-                                </span>
+                                <div className="group-data-[collapsible=icon]:hidden">
+                                    <span className="text-sm font-bold text-white tracking-tight">
+                                        KI Kanzlei
+                                    </span>
+                                    <p className="text-[10px] text-sidebar-foreground/50 font-medium leading-tight">
+                                        Lead Dashboard
+                                    </p>
+                                </div>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -174,8 +181,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
                                     className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                     tooltip="Mein Konto"
                                 >
-                                    <Avatar className="h-8 w-8 flex-shrink-0">
-                                        <AvatarFallback className="bg-white/20 text-white font-bold text-sm">
+                                    <Avatar className="h-8 w-8 flex-shrink-0 rounded-xl">
+                                        <AvatarFallback className="bg-white/20 text-white font-bold text-sm rounded-xl">
                                             {initials}
                                         </AvatarFallback>
                                     </Avatar>
@@ -196,8 +203,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
                                 {/* User info */}
                                 <DropdownMenuLabel className="px-4 py-3.5 border-b border-border/50">
                                     <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9 flex-shrink-0">
-                                            <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                                        <Avatar className="h-9 w-9 flex-shrink-0 rounded-xl">
+                                            <AvatarFallback className="bg-primary text-primary-foreground font-bold rounded-xl">
                                                 {initials}
                                             </AvatarFallback>
                                         </Avatar>
@@ -212,9 +219,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
                                 </DropdownMenuLabel>
 
                                 <DropdownMenuGroup className="py-1.5">
-                                    <DropdownMenuItem className="mx-1.5 gap-3 cursor-pointer">
-                                        <BadgeCheck className="h-4 w-4 text-muted-foreground" />
-                                        Mein Profil
+                                    <DropdownMenuItem asChild className="mx-1.5 gap-3 cursor-pointer">
+                                        <Link href="/dashboard/settings?tab=profile">
+                                            <BadgeCheck className="h-4 w-4 text-muted-foreground" />
+                                            Mein Profil
+                                        </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem asChild className="mx-1.5 gap-3 cursor-pointer">
                                         <Link href="/dashboard/settings">

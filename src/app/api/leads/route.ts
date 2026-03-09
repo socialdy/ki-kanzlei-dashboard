@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const industry = searchParams.get("industry");
     const city = searchParams.get("city");
+    const sortBy = searchParams.get("sort_by");
+    const sortDir = searchParams.get("sort_dir");
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "20", 10);
 
@@ -70,6 +72,10 @@ export async function GET(request: NextRequest) {
         city: city ?? undefined,
       },
       { page, pageSize: limit },
+      {
+        sort_by: sortBy ?? undefined,
+        sort_dir: sortDir === "asc" || sortDir === "desc" ? sortDir : undefined,
+      },
     );
 
     return NextResponse.json(result);

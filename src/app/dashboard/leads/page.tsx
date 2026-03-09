@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import type { SortingState, VisibilityState } from "@tanstack/react-table";
 import {
   Search,
   Users,
-  Download,
-  RefreshCw,
   InboxIcon,
   X,
-  Filter,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -34,79 +31,37 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 
 import { LeadsTable, LEAD_STATUS_CONFIG } from "@/components/leads/LeadsTable";
+import { createColumns } from "@/components/leads/columns";
+import { DataTableViewOptions } from "@/components/leads/DataTableViewOptions";
 import { LeadSelectionBar } from "@/components/leads/LeadSelectionBar";
 import { LeadEditSheet } from "@/components/leads/LeadEditSheet";
 import { LeadDeleteDialog } from "@/components/leads/LeadDeleteDialog";
 import { SearchJobsList } from "@/components/leads/SearchJobsList";
 import { LeadSearchForm } from "@/components/leads/LeadSearchForm";
 import { IndustryCombobox } from "@/components/leads/IndustryCombobox";
-import type { SearchFormValues } from "@/components/leads/LeadSearchForm";
+import type { SearchFormValues, SearchSource } from "@/components/leads/LeadSearchForm";
 
 import type { Lead, LeadStatus, SearchJob } from "@/types/leads";
-import { countryLabel } from "@/types/leads";
+
+// We need a ref to the table instance for the DataTableViewOptions
+import { useReactTable, getCoreRowModel, type ColumnDef } from "@tanstack/react-table";
 
 const PAGE_SIZE = 20;
-
-/* ── CSV Export ── */
-function exportLeadsToCSV(leads: Lead[]): void {
-  if (leads.length === 0) {
-    toast.error("Keine Leads zum Exportieren vorhanden");
-    return;
-  }
-
-  const headers = [
-    "Firma", "Name/GF", "Titel", "Anrede", "Branche", "Rechtsform",
-    "Straße", "PLZ", "Ort", "Land",
-    "Telefon", "E-Mail", "Website", "Status",
-    "LinkedIn", "Facebook", "Instagram", "Xing", "Twitter/X", "YouTube", "TikTok",
-  ];
-
-  function escapeCSV(value: string | number | null | undefined): string {
-    if (value === null || value === undefined) return "";
-    const str = String(value);
-    if (str.includes(";") || str.includes('"') || str.includes("\n")) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  }
-
-  const rows = leads.map((lead) => {
-    const statusLabel = LEAD_STATUS_CONFIG[lead.status]?.label ?? lead.status;
-    const genderLabel = lead.ceo_gender === "herr" ? "Herr" : lead.ceo_gender === "frau" ? "Frau" : "";
-    return [
-      escapeCSV(lead.company), escapeCSV(lead.ceo_name ?? lead.name),
-      escapeCSV(lead.ceo_title), escapeCSV(genderLabel),
-      escapeCSV(lead.category ?? lead.industry), escapeCSV(lead.legal_form),
-      escapeCSV(lead.street ?? lead.address),
-      escapeCSV(lead.postal_code), escapeCSV(lead.city), escapeCSV(countryLabel(lead.country)),
-      escapeCSV(lead.phone), escapeCSV(lead.email), escapeCSV(lead.website),
-      escapeCSV(statusLabel),
-      escapeCSV(lead.social_linkedin), escapeCSV(lead.social_facebook),
-      escapeCSV(lead.social_instagram), escapeCSV(lead.social_xing),
-      escapeCSV(lead.social_twitter), escapeCSV(lead.social_youtube),
-      escapeCSV(lead.social_tiktok),
-    ].join(";");
-  });
-
-  const BOM = "\uFEFF";
-  const csvContent = BOM + headers.join(";") + "\n" + rows.join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  const dateStr = new Date().toISOString().slice(0, 10);
-  link.href = url;
-  link.download = `leads_export_${dateStr}.csv`;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(() => {
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, 100);
-  toast.success(`${leads.length} Leads als CSV exportiert`);
-}
 
 /* ── Pagination helpers ── */
 function buildPageNumbers(current: number, total: number): (number | "…")[] {
@@ -140,6 +95,7 @@ export default function LeadScrapingPage() {
   const [searchJobs, setSearchJobs] = useState<SearchJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchSource, setSearchSource] = useState<SearchSource | null>(null);
   const [activeTab, setActiveTab]   = useState("search");
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -153,17 +109,35 @@ export default function LeadScrapingPage() {
   const [filterSearch, setFilterSearch]     = useState("");
   const [filterStatus, setFilterStatus]     = useState("all");
   const [filterIndustry, setFilterIndustry] = useState<string | undefined>(undefined);
-  const [filterCity, setFilterCity]         = useState("");
 
-  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry || filterCity;
+  /* ── Sorting & Column Visibility ── */
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+
+  /* ── Dynamic Industries ── */
+  const [industryOptions, setIndustryOptions] = useState<{ value: string; label: string }[]>([]);
+
+  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry;
 
   function resetFilters() {
     setFilterSearch("");
     setFilterStatus("all");
     setFilterIndustry(undefined);
-    setFilterCity("");
     setLeadsPage(1);
   }
+
+  /* ── Fetch industries ── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/leads/industries");
+        if (!res.ok) return;
+        const json = await res.json();
+        const opts = (json.data as string[]).map((v) => ({ value: v, label: v }));
+        setIndustryOptions(opts);
+      } catch { /* silent */ }
+    })();
+  }, [leads]); // refetch when leads change
 
   /* ── Data fetching ── */
   const fetchLeads = useCallback(async (page = 1) => {
@@ -173,7 +147,10 @@ export default function LeadScrapingPage() {
       if (filterSearch) params.set("search", filterSearch);
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterIndustry) params.set("industry", filterIndustry);
-      if (filterCity) params.set("city", filterCity);
+      if (sorting.length > 0) {
+        params.set("sort_by", sorting[0].id);
+        params.set("sort_dir", sorting[0].desc ? "desc" : "asc");
+      }
 
       const res = await fetch(`/api/leads?${params.toString()}`);
       if (!res.ok) throw new Error();
@@ -185,7 +162,7 @@ export default function LeadScrapingPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filterSearch, filterStatus, filterIndustry, filterCity]);
+  }, [filterSearch, filterStatus, filterIndustry, sorting]);
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -206,22 +183,30 @@ export default function LeadScrapingPage() {
     fetchJobs();
   }, [fetchLeads, fetchJobs]);
 
-  // Re-fetch when filters change (reset to page 1)
+  // Re-fetch when dropdown filters or sorting change (reset to page 1)
   useEffect(() => {
     setLeadsPage(1);
     fetchLeads(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterIndustry]);
+  }, [filterStatus, filterIndustry, sorting]);
 
-  /* ── Debounced text-filter fetch ── */
+  /* ── Debounced text-filter fetch (500ms, min 2 chars or empty) ── */
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // If 1 character: skip fetch
+    if (filterSearch.length === 1) return;
+
+    debounceRef.current = setTimeout(() => {
       setLeadsPage(1);
       fetchLeads(1);
-    }, 400);
-    return () => clearTimeout(timer);
+    }, 500);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterSearch, filterCity]);
+  }, [filterSearch]);
 
   /* ── Polling + Stale-Job-Timeout ── */
   const STALE_JOB_TIMEOUT_MS = 10 * 60 * 1000;
@@ -243,20 +228,20 @@ export default function LeadScrapingPage() {
           if (jobAge > STALE_JOB_TIMEOUT_MS) {
             hasChanges = true;
             toast.error(
-              `Suche "${job.query}" abgebrochen — Zeitüberschreitung (n8n Workflow nicht erreichbar)`,
+              `Suche "${job.query}" abgebrochen — Zeitüberschreitung (Server nicht erreichbar)`,
             );
             fetch(`/api/leads/search/${job.id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 status: "failed",
-                error_message: "Zeitüberschreitung — n8n Workflow nicht erreichbar oder inaktiv",
+                error_message: "Zeitüberschreitung — Server nicht erreichbar",
               }),
             }).catch(() => {});
             return {
               ...job,
               status: "failed" as const,
-              error_message: "Zeitüberschreitung — n8n Workflow nicht erreichbar oder inaktiv",
+              error_message: "Zeitüberschreitung — Server nicht erreichbar",
             };
           }
 
@@ -291,10 +276,12 @@ export default function LeadScrapingPage() {
   }, [searchJobs, fetchLeads, leadsPage]);
 
   /* ── Search submit ── */
-  async function onSearchSubmit(values: SearchFormValues) {
+  async function onSearchSubmit(values: SearchFormValues, source: SearchSource) {
     setIsSearching(true);
+    setSearchSource(source);
     try {
-      const res = await fetch("/api/leads/search", {
+      const endpoint = source === "n8n" ? "/api/leads/search/n8n" : "/api/leads/search";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -306,11 +293,13 @@ export default function LeadScrapingPage() {
       const json = await res.json();
       setSearchJobs((prev) => [json.data as SearchJob, ...prev]);
       setActiveTab("search");
-      toast.success(`Suche nach "${values.query}" in ${values.location} gestartet`);
+      const sourceLabel = source === "n8n" ? "n8n" : "Native";
+      toast.success(`${sourceLabel} Suche nach "${values.query}" in ${values.location} gestartet`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");
     } finally {
       setIsSearching(false);
+      setSearchSource(null);
     }
   }
 
@@ -322,12 +311,6 @@ export default function LeadScrapingPage() {
   }
 
   /* ── Selection / Bulk actions ── */
-  function handleRefresh() {
-    setSelectedIds(new Set());
-    fetchJobs();
-    fetchLeads(leadsPage);
-  }
-
   function handleEditFromSelection() {
     const id = Array.from(selectedIds)[0];
     const lead = leads.find((l) => l.id === id);
@@ -390,6 +373,43 @@ export default function LeadScrapingPage() {
     fetchLeads(leadsPage);
   }
 
+  /* ── Columns (memoized) ── */
+  const columns = useMemo(
+    () =>
+      createColumns({
+        onEditLead: handleEditLead,
+        onDeleteLead: handleDeleteLead,
+        onStatusChange: handleRowStatusChange,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  /* ── Table instance for toolbar (DataTableViewOptions needs it) ── */
+  const rowSelection: Record<string, boolean> = {};
+  leads.forEach((lead, idx) => {
+    if (selectedIds.has(lead.id)) rowSelection[idx] = true;
+  });
+
+  const toolbarTable = useReactTable({
+    data: leads,
+    columns,
+    state: { sorting, columnVisibility, rowSelection },
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      setSorting(next);
+    },
+    onColumnVisibilityChange: (updater) => {
+      const next = typeof updater === "function" ? updater(columnVisibility) : updater;
+      setColumnVisibility(next);
+    },
+    onRowSelectionChange: () => {},
+    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+    manualPagination: true,
+    getRowId: (row) => row.id,
+  });
+
   /* ── Derived ── */
   const totalPages     = Math.max(1, Math.ceil(leadsCount / PAGE_SIZE));
   const activeJobsCount = searchJobs.filter(
@@ -401,18 +421,18 @@ export default function LeadScrapingPage() {
      Render
      ══════════════════════════════════════════════════════════ */
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
 
       {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Finde und verwalte Leads über Google Places + LangSearch
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
+        <p className="text-sm text-muted-foreground">
+          Finde und verwalte deine Leads
         </p>
       </div>
 
       {/* Suchformular */}
-      <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} />
+      <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} searchSource={searchSource} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
@@ -437,31 +457,6 @@ export default function LeadScrapingPage() {
               )}
             </TabsTrigger>
           </TabsList>
-
-          {/* Leads-Tab Toolbar */}
-          {activeTab === "leads" && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportLeadsToCSV(leads)}
-                disabled={leads.length === 0 || leadsLoading}
-                className="h-8 text-xs gap-1.5"
-              >
-                <Download className="h-3.5 w-3.5" />
-                CSV Export
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleRefresh}
-                title="Aktualisieren"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Tab: Suchaufträge */}
@@ -473,38 +468,25 @@ export default function LeadScrapingPage() {
         <TabsContent value="leads" className="mt-3">
           <div className="rounded-lg border bg-card overflow-hidden">
 
-            {/* Filter-Leiste */}
-            <div className="px-4 py-3 border-b bg-muted/20 space-y-3">
-              <div className="flex items-center gap-2">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="text-xs font-medium text-muted-foreground">Filter</span>
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[11px] text-muted-foreground ml-auto"
-                    onClick={resetFilters}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Zurücksetzen
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {/* Toolbar — one row */}
+            <div className="px-4 py-3 border-b bg-muted/20">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* Textsuche */}
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
+                <InputGroup className="h-8 w-64">
+                  <InputGroupAddon>
+                    <Search className="h-3.5 w-3.5" />
+                  </InputGroupAddon>
+                  <InputGroupInput
                     placeholder="Suche (Firma, Name, E-Mail...)"
-                    className="h-8 pl-8 text-xs"
+                    className="text-xs"
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
                   />
-                </div>
+                </InputGroup>
 
                 {/* Status */}
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className="h-8 w-40 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -517,19 +499,30 @@ export default function LeadScrapingPage() {
                 </Select>
 
                 {/* Branche */}
-                <IndustryCombobox
-                  value={filterIndustry}
-                  onChange={(val) => setFilterIndustry(val ?? undefined)}
-                  placeholder="Branche filtern"
-                />
+                <div className="w-48">
+                  <IndustryCombobox
+                    value={filterIndustry}
+                    onChange={(val) => setFilterIndustry(val ?? undefined)}
+                    placeholder="Branche filtern"
+                    options={industryOptions.length > 0 ? industryOptions : undefined}
+                  />
+                </div>
 
-                {/* Stadt */}
-                <Input
-                  placeholder="Stadt / Ort"
-                  className="h-8 text-xs"
-                  value={filterCity}
-                  onChange={(e) => setFilterCity(e.target.value)}
-                />
+                {/* Spalten */}
+                <DataTableViewOptions table={toolbarTable} />
+
+                {/* Reset */}
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs text-muted-foreground"
+                    onClick={resetFilters}
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Zurücksetzen
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -556,33 +549,42 @@ export default function LeadScrapingPage() {
                 ))}
               </div>
             ) : leads.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 px-4">
-                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mb-3">
-                  <InboxIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="text-sm font-semibold mb-1">
-                  {hasActiveFilters ? "Keine Ergebnisse" : "Noch keine Leads"}
-                </h3>
-                <p className="text-sm text-muted-foreground text-center max-w-xs">
-                  {hasActiveFilters
-                    ? "Passe die Filter an oder setze sie zurück."
-                    : "Starte eine Suche, um Leads zu importieren."}
-                </p>
+              <Empty className="py-20 border-0">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <InboxIcon />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-sm">
+                    {hasActiveFilters ? "Keine Ergebnisse" : "Noch keine Leads"}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {hasActiveFilters
+                      ? "Passe die Filter an oder setze sie zurück."
+                      : "Starte eine Suche, um Leads zu importieren."}
+                  </EmptyDescription>
+                </EmptyHeader>
                 {hasActiveFilters && (
-                  <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={resetFilters}>
-                    Filter zurücksetzen
-                  </Button>
+                  <EmptyContent>
+                    <Button variant="outline" size="sm" className="text-xs" onClick={resetFilters}>
+                      Filter zurücksetzen
+                    </Button>
+                  </EmptyContent>
                 )}
-              </div>
+              </Empty>
             ) : (
               <>
                 <LeadsTable
                   leads={leads}
+                  columns={columns}
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
                   onEditLead={handleEditLead}
                   onDeleteLead={handleDeleteLead}
                   onStatusChange={handleRowStatusChange}
+                  sorting={sorting}
+                  onSortingChange={setSorting}
+                  columnVisibility={columnVisibility}
+                  onColumnVisibilityChange={setColumnVisibility}
                 />
 
                 {/* Pagination */}

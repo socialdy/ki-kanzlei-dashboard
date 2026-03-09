@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LeadDeleteDialogProps {
   open: boolean;
@@ -59,37 +61,33 @@ export function LeadDeleteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="sm:max-w-[420px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             {count === 1 ? "Lead löschen" : `${count} Leads löschen`}
-          </DialogTitle>
-          <DialogDescription>
+          </AlertDialogTitle>
+          <AlertDialogDescription>
             {count === 1
               ? "Möchtest du diesen Lead wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
               : `Möchtest du ${count} Leads wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={deleting}
-          >
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>
             Abbrechen
-          </Button>
-          <Button
+          </AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
             onClick={handleDelete}
             disabled={deleting}
           >
-            {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {deleting && <Spinner className="h-4 w-4 mr-2" />}
             {count === 1 ? "Löschen" : `${count} löschen`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

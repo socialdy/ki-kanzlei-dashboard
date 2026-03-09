@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // Nicht eingeloggt → zum Login umleiten (außer Login-Seite selbst)
   if (!user && pathname.startsWith("/dashboard")) {
@@ -40,7 +40,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Eingeloggt + auf Login-Seite → zum Dashboard umleiten
-  if (user && pathname === "/login") {
+  // ABER: Bei Passwort-Recovery auf der Login-Seite bleiben lassen
+  const isRecovery = searchParams.get("recovery") === "true";
+  if (user && pathname === "/login" && !isRecovery) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

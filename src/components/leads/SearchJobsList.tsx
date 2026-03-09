@@ -4,7 +4,6 @@ import {
   Search,
   Clock,
   Users,
-  Loader2,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -14,6 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import type { SearchJob, SearchJobStatus } from "@/types/leads";
 
 const JOB_STATUS_CONFIG: Record<
@@ -60,15 +67,17 @@ export function SearchJobsList({ jobs, loading }: SearchJobsListProps) {
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mb-4">
-              <Search className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="text-sm font-semibold mb-1">Keine Suchaufträge</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-xs">
-              Starte eine neue Suche oben, um Leads zu finden.
-            </p>
-          </div>
+          <Empty className="py-16 border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Search />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm">Keine Suchaufträge</EmptyTitle>
+              <EmptyDescription>
+                Starte eine neue Suche oben, um Leads zu finden.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="divide-y">
             {jobs.map((job) => {
@@ -91,7 +100,7 @@ export function SearchJobsList({ jobs, loading }: SearchJobsListProps) {
                     )}
                   >
                     {isActive ? (
-                      <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                      <Spinner className="h-5 w-5 text-primary" />
                     ) : job.status === "completed" ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                     ) : (

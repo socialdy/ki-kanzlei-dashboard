@@ -29,6 +29,16 @@ export interface LeadFilters {
   search?: string;
 }
 
+/** Sortier-Optionen */
+export interface SortOptions {
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+const SORTABLE_COLUMNS = new Set([
+  "company", "industry", "city", "status", "created_at", "email", "website",
+]);
+
 /** Pagination-Optionen */
 export interface PaginationOptions {
   page?: number;
@@ -64,6 +74,7 @@ export interface SearchJobStatusExtras {
 export async function getLeads(
   filters: LeadFilters = {},
   pagination: PaginationOptions = {},
+  sort: SortOptions = {},
 ): Promise<PaginatedResult<Lead>> {
   const supabase = await createClient();
 
@@ -105,7 +116,9 @@ export async function getLeads(
   }
 
   /* Sortierung & Pagination */
-  query = query.order("created_at", { ascending: false }).range(from, to);
+  const sortCol = sort.sort_by && SORTABLE_COLUMNS.has(sort.sort_by) ? sort.sort_by : "created_at";
+  const ascending = sort.sort_dir === "asc";
+  query = query.order(sortCol, { ascending }).range(from, to);
 
   const { data, error, count } = await query;
 
@@ -305,6 +318,28 @@ export async function getLeadStats(): Promise<LeadStats> {
   }
 
   return stats;
+}
+
+/**
+ * Distinct industries aus der DB holen (nur nicht-leere Werte).
+ */
+export async function getDistinctIndustries(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select("industry");
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Branchen: ${error.message}`);
+  }
+
+  const unique = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.industry) unique.add(row.industry);
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, "de"));
 }
 
 /* ─────────────────────── Search Jobs ─────────────────────── */

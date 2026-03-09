@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
-  Loader2,
   Building2,
   Phone,
   MapPin,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +24,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -79,6 +80,7 @@ const editSchema = z.object({
   legal_form:         z.string().optional(),
   industry:           z.string().optional(),
   status:             z.string(),
+  notes:              z.string().optional(),
   ceo_gender:         z.string().optional(),
   ceo_title:          z.string().optional(),
   ceo_first_name:     z.string().optional(),
@@ -113,7 +115,7 @@ export function LeadEditSheet({ lead, open, onOpenChange, onSaved }: LeadEditShe
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
     defaultValues: {
-      company: "", legal_form: "", industry: "", status: "new",
+      company: "", legal_form: "", industry: "", status: "new", notes: "",
       ceo_gender: "", ceo_title: "", ceo_first_name: "", ceo_last_name: "", ceo_name: "",
       phone: "", email: "", website: "",
       street: "", postal_code: "", city: "", country: "",
@@ -129,6 +131,7 @@ export function LeadEditSheet({ lead, open, onOpenChange, onSaved }: LeadEditShe
         legal_form:           lead.legal_form ?? "",
         industry:             lead.industry ?? "",
         status:               lead.status,
+        notes:                lead.notes ?? "",
         ceo_gender:           lead.ceo_gender ?? "",
         ceo_title:            lead.ceo_title ?? "",
         ceo_first_name:       lead.ceo_first_name ?? "",
@@ -175,6 +178,7 @@ export function LeadEditSheet({ lead, open, onOpenChange, onSaved }: LeadEditShe
           legal_form:           values.legal_form || null,
           industry:             values.industry || null,
           status:               values.status,
+          notes:                values.notes || null,
           ceo_gender:           values.ceo_gender || null,
           ceo_title:            values.ceo_title || null,
           ceo_first_name:       values.ceo_first_name || null,
@@ -338,6 +342,24 @@ export function LeadEditSheet({ lead, open, onOpenChange, onSaved }: LeadEditShe
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">Notizen</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Interne Notizen zu diesem Lead..."
+                            className="min-h-20 text-sm resize-none"
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -595,7 +617,7 @@ export function LeadEditSheet({ lead, open, onOpenChange, onSaved }: LeadEditShe
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Spinner className="h-4 w-4 mr-2" />
                 )}
                 Speichern
               </Button>

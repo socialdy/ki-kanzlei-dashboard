@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -23,8 +24,12 @@ export default async function DashboardLayout({
             ?? null,
     };
 
+    const cookieStore = await cookies();
+    const sidebarCookie = cookieStore.get("sidebar_state");
+    const defaultOpen = sidebarCookie ? sidebarCookie.value === "true" : true;
+
     return (
-        <SidebarProvider>
+        <SidebarProvider defaultOpen={defaultOpen}>
             <AppSidebar user={sidebarUser} />
             <SidebarInset className="bg-background">
                 <Header />

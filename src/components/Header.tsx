@@ -13,6 +13,9 @@ import {
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription,
+} from "@/components/ui/empty";
 
 /* ── Route meta ── */
 const routeMeta: Record<string, { label: string; parent?: string }> = {
@@ -43,11 +46,17 @@ function NotificationDropdown() {
                 <DropdownMenuLabel className="px-4 py-3 border-b border-border/50 text-sm font-bold">
                     Benachrichtigungen
                 </DropdownMenuLabel>
-                <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                    <Bell className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                    <p className="text-sm font-medium text-muted-foreground">Keine Benachrichtigungen</p>
-                    <p className="text-xs text-muted-foreground/60 mt-0.5">Du bist auf dem neuesten Stand.</p>
-                </div>
+                <Empty className="py-8 px-4 border-0 gap-3">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon" className="size-8 [&_svg:not([class*='size-'])]:size-4">
+                            <Bell />
+                        </EmptyMedia>
+                        <EmptyTitle className="text-sm">Keine Benachrichtigungen</EmptyTitle>
+                        <EmptyDescription className="text-xs">
+                            Du bist auf dem neuesten Stand.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
             </DropdownMenuContent>
         </DropdownMenu>
     );
