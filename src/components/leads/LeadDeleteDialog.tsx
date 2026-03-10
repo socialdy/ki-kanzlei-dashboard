@@ -14,13 +14,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import type { LeadFilters } from "@/types/leads";
 
 interface LeadDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** IDs der zu löschenden Leads */
+  /** IDs der zu löschenden Leads (nur relevant bei isGlobalSelected=false) */
   leadIds: string[];
   onDeleted: () => void;
+  isGlobalSelected?: boolean;
+  totalCount?: number;
+  filters?: LeadFilters;
 }
 
 export function LeadDeleteDialog({
@@ -28,17 +32,36 @@ export function LeadDeleteDialog({
   onOpenChange,
   leadIds,
   onDeleted,
+  isGlobalSelected = false,
+  totalCount = 0,
+  filters,
 }: LeadDeleteDialogProps) {
   const [deleting, setDeleting] = useState(false);
-  const count = leadIds.length;
+  
+  // Der anzuzeigende Count ist entweder die Anzahl der IDs oder der globale Gesamt-Count
+  const count = isGlobalSelected ? totalCount : leadIds.length;
 
   async function handleDelete() {
     setDeleting(true);
     try {
-      if (count === 1) {
+      if (isGlobalSelected) {
+        // Globaler Delete mittels Filtern
+        const res = await fetch("/api/leads/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: "delete", 
+            selectionMode: "all", 
+            filters 
+          }),
+        });
+        if (!res.ok) throw new Error();
+      } else if (count === 1) {
+        // Einzelner Delete über spezifische ID
         const res = await fetch(`/api/leads/${leadIds[0]}`, { method: "DELETE" });
         if (!res.ok) throw new Error();
       } else {
+        // Normaler Bulk Delete über IDs
         const res = await fetch("/api/leads/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -46,6 +69,7 @@ export function LeadDeleteDialog({
         });
         if (!res.ok) throw new Error();
       }
+
       toast.success(
         count === 1
           ? "Lead gelöscht"
@@ -80,7 +104,10 @@ export function LeadDeleteDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              handleDelete();
+            }}
             disabled={deleting}
           >
             {deleting && <Spinner className="h-4 w-4 mr-2" />}

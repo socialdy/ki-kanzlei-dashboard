@@ -8,7 +8,7 @@ import { getLeads } from "@/lib/supabase/leads";
 import type { LeadStatus } from "@/types/leads";
 
 const VALID_STATUSES: LeadStatus[] = [
-  "new", "enriched", "contacted", "qualified", "converted", "closed",
+  "new", "enriched", "contacted", "converted", "closed",
 ];
 
 export async function GET(request: NextRequest) {
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const industry = searchParams.get("industry");
     const city = searchParams.get("city");
+    const legalForm = searchParams.get("legal_form");
     const sortBy = searchParams.get("sort_by");
     const sortDir = searchParams.get("sort_dir");
     const page = parseInt(searchParams.get("page") ?? "1", 10);
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
         search: search ?? undefined,
         industry: industry ?? undefined,
         city: city ?? undefined,
+        legal_form: legalForm ?? undefined,
       },
       { page, pageSize: limit },
       {

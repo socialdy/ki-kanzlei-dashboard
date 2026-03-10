@@ -70,7 +70,6 @@ const STATUS_OPTIONS = [
   { value: "new", label: "Neu" },
   { value: "enriched", label: "Angereichert" },
   { value: "contacted", label: "Kontaktiert" },
-  { value: "qualified", label: "Qualifiziert" },
 ];
 
 export function LeadPickerDialog({

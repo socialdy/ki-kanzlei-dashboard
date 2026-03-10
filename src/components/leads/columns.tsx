@@ -44,8 +44,7 @@ export const LEAD_STATUS_CONFIG: Record<
   new:       { label: "Neu",          variant: "secondary",  dot: "bg-blue-500" },
   enriched:  { label: "Angereichert", variant: "secondary",  dot: "bg-violet-500" },
   contacted: { label: "Kontaktiert",  variant: "outline",    dot: "bg-amber-500" },
-  qualified: { label: "Qualifiziert", variant: "secondary",  dot: "bg-emerald-500" },
-  converted: { label: "Konvertiert",  variant: "default",    dot: "bg-green-600" },
+  converted: { label: "Konvertiert",  variant: "default",    dot: "bg-emerald-500" },
   closed:    { label: "Geschlossen",  variant: "outline",    dot: "bg-slate-400" },
 };
 
@@ -53,8 +52,7 @@ const STATUS_LIST: { value: LeadStatus; label: string; dot: string }[] = [
   { value: "new",       label: "Neu",          dot: "bg-blue-500" },
   { value: "enriched",  label: "Angereichert", dot: "bg-violet-500" },
   { value: "contacted", label: "Kontaktiert",  dot: "bg-amber-500" },
-  { value: "qualified", label: "Qualifiziert", dot: "bg-emerald-500" },
-  { value: "converted", label: "Konvertiert",  dot: "bg-green-600" },
+  { value: "converted", label: "Konvertiert",  dot: "bg-emerald-500" },
   { value: "closed",    label: "Geschlossen",  dot: "bg-slate-400" },
 ];
 
@@ -113,8 +111,6 @@ export function createColumns(actions: ColumnActions): ColumnDef<Lead>[] {
       header: ({ table }) => (
         <div
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
         >
           <Checkbox
             checked={
@@ -133,9 +129,6 @@ export function createColumns(actions: ColumnActions): ColumnDef<Lead>[] {
         <div
           className="relative z-10"
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
         >
           <Checkbox
             className="cursor-pointer"

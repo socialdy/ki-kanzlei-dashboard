@@ -10,30 +10,14 @@ import type {
   LeadInsert,
   LeadUpdate,
   LeadStatus,
+  LeadFilters,
+  SortOptions,
   SearchJob,
   SearchJobInsert,
   SearchJobStatus,
 } from "@/types/leads";
 
 /* ─────────────────────────── Typen ─────────────────────────── */
-
-/** Optionale Filter für die Lead-Abfrage */
-export interface LeadFilters {
-  status?: LeadStatus;
-  city?: string;
-  category?: string;
-  industry?: string;
-  search_query?: string;
-  search_location?: string;
-  /** Volltextsuche über Name, Firma, E-Mail */
-  search?: string;
-}
-
-/** Sortier-Optionen */
-export interface SortOptions {
-  sort_by?: string;
-  sort_dir?: "asc" | "desc";
-}
 
 const SORTABLE_COLUMNS = new Set([
   "company", "industry", "city", "status", "created_at", "email", "website",
@@ -105,6 +89,9 @@ export async function getLeads(
   }
   if (filters.search_location) {
     query = query.eq("search_location", filters.search_location);
+  }
+  if (filters.legal_form) {
+    query = query.eq("legal_form", filters.legal_form);
   }
 
   /* Volltextsuche über mehrere Spalten */
@@ -282,6 +269,62 @@ export async function bulkUpdateLeadStatus(
 }
 
 /**
+ * Filtert Leads basierend auf den Kriterien und gibt ein Query-Objekt zurück.
+ * Für Bulk-UPDATE/DELETE fügt Supabase immer einen expliziten Filter hinzu, da
+ * filterlose Operationen von PostgREST abgelehnt werden (auch mit RLS).
+ */
+function applyFilters(query: any, filters: LeadFilters) {
+  let hasFilter = false;
+
+  if (filters.status) { query = query.eq("status", filters.status); hasFilter = true; }
+  if (filters.city) { query = query.ilike("city", `%${filters.city}%`); hasFilter = true; }
+  if (filters.category) { query = query.ilike("category", `%${filters.category}%`); hasFilter = true; }
+  if (filters.industry) { query = query.ilike("industry", `%${filters.industry}%`); hasFilter = true; }
+  if (filters.search_query) { query = query.eq("search_query", filters.search_query); hasFilter = true; }
+  if (filters.search_location) { query = query.eq("search_location", filters.search_location); hasFilter = true; }
+  if (filters.legal_form) { query = query.eq("legal_form", filters.legal_form); hasFilter = true; }
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    query = query.or(`name.ilike.${term},company.ilike.${term},company_name.ilike.${term},email.ilike.${term},city.ilike.${term}`);
+    hasFilter = true;
+  }
+
+  // Supabase/PostgREST erfordert immer mindestens einen expliziten Filter für
+  // UPDATE/DELETE. Falls keine Domain-Filter aktiv sind, fügen wir einen
+  // trivialen Filter hinzu (UUIDs sind nie leere Strings → immer true).
+  if (!hasFilter) {
+    query = query.not("id", "is", null);
+  }
+
+  return query;
+}
+
+/**
+ * Löscht alle Leads, die auf die Filter zutreffen.
+ */
+export async function bulkDeleteLeadsByFilters(filters: LeadFilters): Promise<void> {
+  const supabase = await createClient();
+  let query = supabase.from("leads").delete();
+  query = applyFilters(query, filters);
+  const { error } = await query;
+  if (error) throw new Error(`Fehler beim Bulk-Löschen nach Filtern: ${error.message}`);
+}
+
+/**
+ * Aktualisiert den Status aller Leads, die auf die Filter zutreffen.
+ */
+export async function bulkUpdateLeadStatusByFilters(
+  filters: LeadFilters,
+  status: LeadStatus,
+): Promise<void> {
+  const supabase = await createClient();
+  let query = supabase.from("leads").update({ status, updated_at: new Date().toISOString() });
+  query = applyFilters(query, filters);
+  const { error } = await query;
+  if (error) throw new Error(`Fehler beim Bulk-Status-Update nach Filtern: ${error.message}`);
+}
+
+/**
  * Statistiken: Anzahl der Leads gruppiert nach Status.
  */
 export async function getLeadStats(): Promise<LeadStats> {
@@ -299,7 +342,6 @@ export async function getLeadStats(): Promise<LeadStats> {
     "new",
     "enriched",
     "contacted",
-    "qualified",
     "converted",
     "closed",
   ];

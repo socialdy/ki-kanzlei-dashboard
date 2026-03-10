@@ -507,8 +507,8 @@ function LoginContent() {
                     <Image
                         src="/images/KI-Kanzlei_Logo_2026.png"
                         alt="KI Kanzlei"
-                        width={88}
-                        height={88}
+                        width={176}
+                        height={176}
                         quality={100}
                         className="h-11 w-11 rounded-lg shadow-lg shadow-black/20"
                         priority

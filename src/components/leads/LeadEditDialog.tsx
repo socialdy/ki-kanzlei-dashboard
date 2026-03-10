@@ -38,7 +38,6 @@ const STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
   { value: "new", label: "Neu" },
   { value: "enriched", label: "Angereichert" },
   { value: "contacted", label: "Kontaktiert" },
-  { value: "qualified", label: "Qualifiziert" },
   { value: "converted", label: "Konvertiert" },
   { value: "closed", label: "Geschlossen" },
 ];

@@ -3,9 +3,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
-import {
-  Search,
-  Users,
+import { 
+  Users, 
+  Search, 
+  Plus, 
+  Trash2, 
+  SlidersHorizontal, 
+  MapPin, 
+  Building2,
+  Calendar, 
+  Download,
+  FilterX,
+  RefreshCcw,
   InboxIcon,
   X,
 } from "lucide-react";
@@ -77,7 +86,6 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "new",       label: "Neu" },
   { value: "enriched",  label: "Angereichert" },
   { value: "contacted", label: "Kontaktiert" },
-  { value: "qualified", label: "Qualifiziert" },
   { value: "converted", label: "Konvertiert" },
   { value: "closed",    label: "Geschlossen" },
 ];
@@ -99,6 +107,7 @@ export default function LeadScrapingPage() {
   const [activeTab, setActiveTab]   = useState("search");
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isGlobalSelected, setIsGlobalSelected] = useState(false);
 
   const [editLead, setEditLead]     = useState<Lead | null>(null);
   const [editOpen, setEditOpen]     = useState(false);
@@ -109,6 +118,7 @@ export default function LeadScrapingPage() {
   const [filterSearch, setFilterSearch]     = useState("");
   const [filterStatus, setFilterStatus]     = useState("all");
   const [filterIndustry, setFilterIndustry] = useState<string | undefined>(undefined);
+  const [filterLegalForm, setFilterLegalForm] = useState<string>("all");
 
   /* ── Sorting & Column Visibility ── */
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -117,12 +127,13 @@ export default function LeadScrapingPage() {
   /* ── Dynamic Industries ── */
   const [industryOptions, setIndustryOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry;
+  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry || filterLegalForm !== "all";
 
   function resetFilters() {
     setFilterSearch("");
     setFilterStatus("all");
     setFilterIndustry(undefined);
+    setFilterLegalForm("all");
     setLeadsPage(1);
   }
 
@@ -147,6 +158,7 @@ export default function LeadScrapingPage() {
       if (filterSearch) params.set("search", filterSearch);
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterIndustry) params.set("industry", filterIndustry);
+      if (filterLegalForm !== "all") params.set("legal_form", filterLegalForm);
       if (sorting.length > 0) {
         params.set("sort_by", sorting[0].id);
         params.set("sort_dir", sorting[0].desc ? "desc" : "asc");
@@ -162,7 +174,7 @@ export default function LeadScrapingPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filterSearch, filterStatus, filterIndustry, sorting]);
+  }, [filterSearch, filterStatus, filterIndustry, filterLegalForm, sorting]);
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -186,9 +198,11 @@ export default function LeadScrapingPage() {
   // Re-fetch when dropdown filters or sorting change (reset to page 1)
   useEffect(() => {
     setLeadsPage(1);
+    setSelectedIds(new Set());
+    setIsGlobalSelected(false);
     fetchLeads(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterIndustry, sorting]);
+  }, [filterStatus, filterIndustry, filterLegalForm, sorting]);
 
   /* ── Debounced text-filter fetch (500ms, min 2 chars or empty) ── */
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -200,6 +214,8 @@ export default function LeadScrapingPage() {
 
     debounceRef.current = setTimeout(() => {
       setLeadsPage(1);
+      setSelectedIds(new Set());
+      setIsGlobalSelected(false);
       fetchLeads(1);
     }, 500);
     return () => {
@@ -308,6 +324,7 @@ export default function LeadScrapingPage() {
     setLeadsPage(page);
     fetchLeads(page);
     setSelectedIds(new Set());
+    setIsGlobalSelected(false);
   }
 
   /* ── Selection / Bulk actions ── */
@@ -324,14 +341,32 @@ export default function LeadScrapingPage() {
 
   async function handleBulkStatusChange(status: LeadStatus) {
     const ids = Array.from(selectedIds);
+    const payload: any = { action: "status", status };
+    
+    if (isGlobalSelected) {
+      payload.selectionMode = "all";
+      payload.filters = {
+        search: filterSearch,
+        status: filterStatus === "all" ? undefined : filterStatus,
+        industry: filterIndustry,
+        legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+      };
+    } else {
+      payload.ids = ids;
+    }
+
     const res = await fetch("/api/leads/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "status", ids, status }),
+      body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error();
-    toast.success(`Status von ${ids.length} Lead(s) geändert`);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(errJson?.error ?? `Fehler ${res.status}`);
+    }
+    toast.success(isGlobalSelected ? `Status von ${leadsCount} Leads geändert` : `Status von ${ids.length} Lead(s) geändert`);
     setSelectedIds(new Set());
+    setIsGlobalSelected(false);
     fetchLeads(leadsPage);
   }
 
@@ -387,8 +422,8 @@ export default function LeadScrapingPage() {
 
   /* ── Table instance for toolbar (DataTableViewOptions needs it) ── */
   const rowSelection: Record<string, boolean> = {};
-  leads.forEach((lead, idx) => {
-    if (selectedIds.has(lead.id)) rowSelection[idx] = true;
+  leads.forEach((lead) => {
+    if (selectedIds.has(lead.id)) rowSelection[lead.id] = true;
   });
 
   const toolbarTable = useReactTable({
@@ -508,6 +543,22 @@ export default function LeadScrapingPage() {
                   />
                 </div>
 
+                {/* Rechtsform */}
+                <Select value={filterLegalForm} onValueChange={setFilterLegalForm}>
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <Building2 className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Rechtsform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Rechtsformen</SelectItem>
+                    <SelectItem value="gmbh">GmbH</SelectItem>
+                    <SelectItem value="eu">Einzelunternehmen</SelectItem>
+                    <SelectItem value="ag">AG</SelectItem>
+                    <SelectItem value="og">OG</SelectItem>
+                    <SelectItem value="kg">KG</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 {/* Spalten */}
                 <DataTableViewOptions table={toolbarTable} />
 
@@ -535,7 +586,8 @@ export default function LeadScrapingPage() {
                 )}
                 {selectedIds.size > 0 && (
                   <span className="ml-2 text-primary font-medium">
-                    · {selectedIds.size} ausgewählt
+                    · {isGlobalSelected ? leadsCount.toLocaleString("de-DE") : selectedIds.size} ausgewählt
+                    {isGlobalSelected && " (alle)"}
                   </span>
                 )}
               </p>
@@ -593,7 +645,8 @@ export default function LeadScrapingPage() {
                     <Separator />
                     <div className="px-4 py-3 flex items-center justify-between gap-4">
                       <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        Seite {leadsPage} von {totalPages}
+                        Anzeige {(leadsPage - 1) * PAGE_SIZE + 1} bis{" "}
+                        {Math.min(leadsPage * PAGE_SIZE, leadsCount)} von {leadsCount} Leads
                       </p>
                       <Pagination className="mx-0 w-auto justify-end">
                         <PaginationContent className="gap-0.5">
@@ -645,7 +698,13 @@ export default function LeadScrapingPage() {
       {/* Selection Bar (fixed bottom) */}
       <LeadSelectionBar
         selectedCount={selectedIds.size}
-        onClear={() => setSelectedIds(new Set())}
+        totalCount={leadsCount}
+        isAllSelected={isGlobalSelected}
+        onClear={() => {
+          setSelectedIds(new Set());
+          setIsGlobalSelected(false);
+        }}
+        onSelectAll={() => setIsGlobalSelected(true)}
         onEdit={handleEditFromSelection}
         onDelete={handleDeleteFromSelection}
         onStatusChange={handleBulkStatusChange}
@@ -664,6 +723,14 @@ export default function LeadScrapingPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         leadIds={deleteIds}
+        isGlobalSelected={isGlobalSelected}
+        totalCount={leadsCount}
+        filters={{
+          search: filterSearch,
+          status: filterStatus === "all" ? undefined : (filterStatus as LeadStatus),
+          industry: filterIndustry,
+          legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+        }}
         onDeleted={handleDeleted}
       />
     </div>

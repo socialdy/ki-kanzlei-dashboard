@@ -25,7 +25,6 @@ const leadStatusConfig: ChartConfig = {
   new:        { label: "Neu",          color: "oklch(0.65 0.20 250)" },
   enriched:   { label: "Angereichert", color: "oklch(0.65 0.17 160)" },
   contacted:  { label: "Kontaktiert",  color: "oklch(0.70 0.15 55)" },
-  qualified:  { label: "Qualifiziert", color: "oklch(0.55 0.20 263)" },
   converted:  { label: "Konvertiert",  color: "oklch(0.60 0.19 145)" },
   closed:     { label: "Geschlossen",  color: "oklch(0.55 0.02 250)" },
 };

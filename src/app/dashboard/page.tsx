@@ -47,11 +47,6 @@ export default async function DashboardOverview() {
     .select("*", { count: "exact", head: true })
     .eq("status", "contacted");
 
-  const { count: qualifiedLeads } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "qualified");
-
   const { count: convertedLeads } = await supabase
     .from("leads")
     .select("*", { count: "exact", head: true })
@@ -117,7 +112,6 @@ export default async function DashboardOverview() {
     { status: "new",        count: newLeads ?? 0 },
     { status: "enriched",   count: enrichedLeads ?? 0 },
     { status: "contacted",  count: contactedLeads ?? 0 },
-    { status: "qualified",  count: qualifiedLeads ?? 0 },
     { status: "converted",  count: convertedLeads ?? 0 },
     { status: "closed",     count: closedLeads ?? 0 },
   ].filter(d => d.count > 0);

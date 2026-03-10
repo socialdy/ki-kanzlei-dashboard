@@ -42,8 +42,7 @@ const STATUS_LIST: { value: LeadStatus; label: string; dot: string }[] = [
   { value: "new",       label: "Neu",          dot: "bg-blue-500" },
   { value: "enriched",  label: "Angereichert", dot: "bg-violet-500" },
   { value: "contacted", label: "Kontaktiert",  dot: "bg-amber-500" },
-  { value: "qualified", label: "Qualifiziert", dot: "bg-emerald-500" },
-  { value: "converted", label: "Konvertiert",  dot: "bg-green-600" },
+  { value: "converted", label: "Konvertiert",  dot: "bg-emerald-500" },
   { value: "closed",    label: "Geschlossen",  dot: "bg-slate-400" },
 ];
 
@@ -76,8 +75,8 @@ export function LeadsTable({
 }: LeadsTableProps) {
   // Bridge Set<string> ↔ Record<string, boolean>
   const rowSelection: Record<string, boolean> = {};
-  leads.forEach((lead, idx) => {
-    if (selectedIds.has(lead.id)) rowSelection[idx] = true;
+  leads.forEach((lead) => {
+    if (selectedIds.has(lead.id)) rowSelection[lead.id] = true;
   });
 
   const table = useReactTable({
@@ -98,14 +97,14 @@ export function LeadsTable({
     },
     onRowSelectionChange: (updater) => {
       const current: Record<string, boolean> = {};
-      leads.forEach((lead, idx) => {
-        if (selectedIds.has(lead.id)) current[idx] = true;
+      leads.forEach((lead) => {
+        if (selectedIds.has(lead.id)) current[lead.id] = true;
       });
       const next = typeof updater === "function" ? updater(current) : updater;
       const ids = new Set<string>();
-      for (const [idx, selected] of Object.entries(next)) {
-        if (selected && leads[Number(idx)]) {
-          ids.add(leads[Number(idx)].id);
+      for (const [id, selected] of Object.entries(next)) {
+        if (selected) {
+          ids.add(id);
         }
       }
       onSelectionChange(ids);
@@ -158,7 +157,6 @@ export function LeadsTable({
                     <TableCell
                       key={checkboxCell.id}
                       className="py-2 px-3"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       {flexRender(checkboxCell.column.columnDef.cell, checkboxCell.getContext())}
                     </TableCell>

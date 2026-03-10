@@ -1,6 +1,23 @@
 /* ── Lead Typen ── */
 
-export type LeadStatus = "new" | "enriched" | "contacted" | "qualified" | "converted" | "closed";
+export type LeadStatus = "new" | "enriched" | "contacted" | "converted" | "closed";
+
+export interface LeadFilters {
+  status?: LeadStatus;
+  city?: string;
+  category?: string;
+  industry?: string;
+  search_query?: string;
+  search_location?: string;
+  legal_form?: string;
+  /** Volltextsuche über Name, Firma, E-Mail */
+  search?: string;
+}
+
+export interface SortOptions {
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
 
 /** Anrede/Geschlecht des GF — Werte kommen 1:1 aus dem AI-Prompt */
 export type CeoGender = "herr" | "frau" | "divers" | "unbekannt";
