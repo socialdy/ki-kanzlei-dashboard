@@ -8,10 +8,9 @@ import {
   Search, 
   Plus, 
   Trash2, 
-  SlidersHorizontal, 
-  MapPin, 
-  Building2,
-  Calendar, 
+  SlidersHorizontal,
+  MapPin,
+  Calendar,
   Download,
   FilterX,
   RefreshCcw,
@@ -40,11 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+import { Input } from "@/components/ui/input";
 import {
   Empty,
   EmptyHeader,
@@ -296,11 +291,17 @@ export default function LeadScrapingPage() {
     setIsSearching(true);
     setSearchSource(source);
     try {
-      const endpoint = source === "n8n" ? "/api/leads/search/n8n" : "/api/leads/search";
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/leads/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          query:        values.query,
+          location:     values.location,
+          country:      values.country ?? "AT",
+          company_type: values.company_type,
+          city:         values.city || undefined,
+          require_ceo:  values.require_ceo || false,
+        }),
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
@@ -309,8 +310,8 @@ export default function LeadScrapingPage() {
       const json = await res.json();
       setSearchJobs((prev) => [json.data as SearchJob, ...prev]);
       setActiveTab("search");
-      const sourceLabel = source === "n8n" ? "n8n" : "Native";
-      toast.success(`${sourceLabel} Suche nach "${values.query}" in ${values.location} gestartet`);
+      const locationLabel = values.city ? `${values.city} (${values.location})` : values.location;
+      toast.success(`Suche nach "${values.query}" in ${locationLabel} gestartet`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");
     } finally {
@@ -396,6 +397,98 @@ export default function LeadScrapingPage() {
     }
   }
 
+  /* ── Export ── */
+  async function handleExport(format: "csv" | "xlsx") {
+    try {
+      let exportLeads: Lead[];
+
+      if (isGlobalSelected) {
+        // Fetch all pages (API max 100 per page)
+        exportLeads = [];
+        let page = 1;
+        const batchSize = 100;
+        while (true) {
+          const params = new URLSearchParams({ page: String(page), limit: String(batchSize) });
+          if (filterSearch) params.set("search", filterSearch);
+          if (filterStatus !== "all") params.set("status", filterStatus);
+          if (filterIndustry) params.set("industry", filterIndustry);
+          if (filterLegalForm !== "all") params.set("legal_form", filterLegalForm);
+          const res = await fetch(`/api/leads?${params.toString()}`);
+          if (!res.ok) throw new Error();
+          const json = await res.json();
+          const batch: Lead[] = json.data ?? [];
+          exportLeads.push(...batch);
+          if (batch.length < batchSize) break;
+          page++;
+        }
+      } else {
+        exportLeads = leads.filter((l) => selectedIds.has(l.id));
+      }
+
+      if (exportLeads.length === 0) {
+        toast.error("Keine Leads zum Exportieren");
+        return;
+      }
+
+      const headers = [
+        "Firma", "Branche", "Rechtsform", "E-Mail", "Telefon", "Website",
+        "Straße", "PLZ", "Stadt", "Land",
+        "GF Name", "GF Vorname", "GF Nachname", "GF Anrede",
+        "Status", "Google Rating", "Google Reviews",
+        "LinkedIn", "Facebook", "Instagram", "Xing",
+        "Notizen", "Erstellt am",
+      ];
+      const rows = exportLeads.map((l) => [
+        l.company, l.industry ?? "", l.legal_form ?? "", l.email ?? "", l.phone ?? "", l.website ?? "",
+        l.street ?? "", l.postal_code ?? "", l.city ?? "", l.country ?? "",
+        l.ceo_name ?? "", l.ceo_first_name ?? "", l.ceo_last_name ?? "", l.ceo_gender ?? "",
+        l.status, l.google_rating ?? "", l.google_reviews_count ?? "",
+        l.social_linkedin ?? "", l.social_facebook ?? "", l.social_instagram ?? "", l.social_xing ?? "",
+        l.notes ?? "", l.created_at?.slice(0, 10) ?? "",
+      ]);
+
+      const timestamp = new Date().toISOString().slice(0, 10);
+      let blob: Blob;
+      let filename: string;
+
+      if (format === "xlsx") {
+        const XLSX = await import("xlsx");
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        // Auto-fit column widths
+        ws["!cols"] = headers.map((h, i) => {
+          const maxLen = Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length));
+          return { wch: Math.min(maxLen + 2, 40) };
+        });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Leads");
+        const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        filename = `leads-export-${timestamp}.xlsx`;
+      } else {
+        const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+        const csvContent = [
+          headers.map(escape).join(";"),
+          ...rows.map((row) => row.map(escape).join(";")),
+        ].join("\n");
+        blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
+        filename = `leads-export-${timestamp}.csv`;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`${exportLeads.length} Lead(s) als ${format.toUpperCase()} exportiert`);
+    } catch {
+      toast.error("Export fehlgeschlagen");
+    }
+  }
+
   /* ── Callbacks after save/delete ── */
   function handleSaved() {
     setSelectedIds(new Set());
@@ -456,37 +549,37 @@ export default function LeadScrapingPage() {
      Render
      ══════════════════════════════════════════════════════════ */
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
 
-      {/* Page Header */}
-      <div className="space-y-1.5">
-        <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-        <p className="text-sm text-muted-foreground">
-          Finde und verwalte deine Leads
-        </p>
+      {/* Page Header + Search */}
+      <div className="px-4 lg:px-6 space-y-4">
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
+          <p className="text-sm text-muted-foreground">
+            Finde und verwalte potenzielle Kunden. Suche nach Branche, Region oder Ort.
+          </p>
+        </div>
+        <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} searchSource={searchSource} />
       </div>
 
-      {/* Suchformular */}
-      <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} searchSource={searchSource} />
-
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0 px-4 lg:px-6">
         <div className="flex items-center justify-between">
-          <TabsList className="h-9">
-            <TabsTrigger value="search" className="text-xs gap-1.5 px-3">
-              <Search className="h-3.5 w-3.5" />
+          <TabsList>
+            <TabsTrigger value="search" className="gap-1.5">
+              <Search className="h-4 w-4" />
               Suchaufträge
               {activeJobsCount > 0 && (
-                <Badge variant="secondary" className="h-4 px-1.5 text-[10px] ml-0.5">
+                <Badge className="ml-1 bg-primary/10 text-primary hover:bg-primary/15">
                   {activeJobsCount}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="leads" className="text-xs gap-1.5 px-3">
-              <Users className="h-3.5 w-3.5" />
+            <TabsTrigger value="leads" className="gap-1.5">
+              <Users className="h-4 w-4" />
               Alle Leads
               {leadsCount > 0 && (
-                <Badge variant="secondary" className="h-4 px-1.5 text-[10px] ml-0.5">
+                <Badge className="ml-1 bg-primary/10 text-primary hover:bg-primary/15">
                   {leadsCount}
                 </Badge>
               )}
@@ -495,38 +588,37 @@ export default function LeadScrapingPage() {
         </div>
 
         {/* Tab: Suchaufträge */}
-        <TabsContent value="search" className="mt-3">
+        <TabsContent value="search" className="mt-4">
           <SearchJobsList jobs={searchJobs} loading={jobsLoading} />
         </TabsContent>
 
         {/* Tab: Alle Leads */}
-        <TabsContent value="leads" className="mt-3">
+        <TabsContent value="leads" className="mt-4">
           <div className="rounded-lg border bg-card overflow-hidden">
 
-            {/* Toolbar — one row */}
+            {/* Toolbar */}
             <div className="px-4 py-3 border-b bg-muted/20">
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 {/* Textsuche */}
-                <InputGroup className="h-8 w-64">
-                  <InputGroupAddon>
-                    <Search className="h-3.5 w-3.5" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    placeholder="Suche (Firma, Name, E-Mail...)"
-                    className="text-xs"
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <input
+                    type="text"
+                    placeholder="Suche (Firma, Name, E-Mail)"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent pl-9 pr-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
                   />
-                </InputGroup>
+                </div>
 
                 {/* Status */}
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="h-8 w-40 text-xs">
+                  <SelectTrigger className="h-9 w-44 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUS_FILTER_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                      <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
                     ))}
@@ -534,7 +626,7 @@ export default function LeadScrapingPage() {
                 </Select>
 
                 {/* Branche */}
-                <div className="w-48">
+                <div className="w-52">
                   <IndustryCombobox
                     value={filterIndustry}
                     onChange={(val) => setFilterIndustry(val ?? undefined)}
@@ -545,8 +637,7 @@ export default function LeadScrapingPage() {
 
                 {/* Rechtsform */}
                 <Select value={filterLegalForm} onValueChange={setFilterLegalForm}>
-                  <SelectTrigger className="h-8 w-40 text-xs">
-                    <Building2 className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                  <SelectTrigger className="h-9 w-48 text-sm">
                     <SelectValue placeholder="Rechtsform" />
                   </SelectTrigger>
                   <SelectContent>
@@ -567,10 +658,10 @@ export default function LeadScrapingPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2.5 text-xs text-muted-foreground"
+                    className="gap-1.5 text-muted-foreground"
                     onClick={resetFilters}
                   >
-                    <X className="h-3.5 w-3.5 mr-1" />
+                    <X className="h-4 w-4" />
                     Zurücksetzen
                   </Button>
                 )}
@@ -579,7 +670,7 @@ export default function LeadScrapingPage() {
 
             {/* Count-Bar */}
             <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {leadsCount.toLocaleString("de-DE")} Einträge gesamt
                 {hasActiveFilters && (
                   <span className="ml-1 text-primary">(gefiltert)</span>
@@ -606,7 +697,7 @@ export default function LeadScrapingPage() {
                   <EmptyMedia variant="icon">
                     <InboxIcon />
                   </EmptyMedia>
-                  <EmptyTitle className="text-sm">
+                  <EmptyTitle>
                     {hasActiveFilters ? "Keine Ergebnisse" : "Noch keine Leads"}
                   </EmptyTitle>
                   <EmptyDescription>
@@ -617,7 +708,7 @@ export default function LeadScrapingPage() {
                 </EmptyHeader>
                 {hasActiveFilters && (
                   <EmptyContent>
-                    <Button variant="outline" size="sm" className="text-xs" onClick={resetFilters}>
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
                       Filter zurücksetzen
                     </Button>
                   </EmptyContent>
@@ -644,24 +735,23 @@ export default function LeadScrapingPage() {
                   <>
                     <Separator />
                     <div className="px-4 py-3 flex items-center justify-between gap-4">
-                      <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        Anzeige {(leadsPage - 1) * PAGE_SIZE + 1} bis{" "}
-                        {Math.min(leadsPage * PAGE_SIZE, leadsCount)} von {leadsCount} Leads
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">
+                        Seite {leadsPage} von {totalPages} ({leadsCount} Leads)
                       </p>
                       <Pagination className="mx-0 w-auto justify-end">
-                        <PaginationContent className="gap-0.5">
+                        <PaginationContent className="gap-1">
                           <PaginationItem>
                             <PaginationPrevious
                               href="#"
                               onClick={(e) => { e.preventDefault(); if (leadsPage > 1) handlePageChange(leadsPage - 1); }}
-                              className={`h-8 text-xs px-2 ${leadsPage <= 1 ? "pointer-events-none opacity-40" : ""}`}
+                              className={leadsPage <= 1 ? "pointer-events-none opacity-40" : ""}
                             />
                           </PaginationItem>
 
                           {pageNumbers.map((p, i) =>
                             p === "…" ? (
                               <PaginationItem key={`ellipsis-${i}`}>
-                                <PaginationEllipsis className="h-8 w-8" />
+                                <PaginationEllipsis />
                               </PaginationItem>
                             ) : (
                               <PaginationItem key={p}>
@@ -669,7 +759,6 @@ export default function LeadScrapingPage() {
                                   href="#"
                                   isActive={p === leadsPage}
                                   onClick={(e) => { e.preventDefault(); handlePageChange(p as number); }}
-                                  className="h-8 w-8 text-xs"
                                 >
                                   {p}
                                 </PaginationLink>
@@ -681,7 +770,7 @@ export default function LeadScrapingPage() {
                             <PaginationNext
                               href="#"
                               onClick={(e) => { e.preventDefault(); if (leadsPage < totalPages) handlePageChange(leadsPage + 1); }}
-                              className={`h-8 text-xs px-2 ${leadsPage >= totalPages ? "pointer-events-none opacity-40" : ""}`}
+                              className={leadsPage >= totalPages ? "pointer-events-none opacity-40" : ""}
                             />
                           </PaginationItem>
                         </PaginationContent>
@@ -708,6 +797,7 @@ export default function LeadScrapingPage() {
         onEdit={handleEditFromSelection}
         onDelete={handleDeleteFromSelection}
         onStatusChange={handleBulkStatusChange}
+        onExport={handleExport}
       />
 
       {/* Edit Sheet */}

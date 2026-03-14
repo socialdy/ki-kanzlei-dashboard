@@ -48,9 +48,24 @@ export default function SettingsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [settingsRes] = await Promise.all([
-          fetch("/api/settings"),
-        ]);
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Check admin role
+        if (user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+          if (profile?.role !== "admin") {
+            router.replace("/dashboard");
+            return;
+          }
+        }
+
+        const settingsRes = await fetch("/api/settings");
 
         if (settingsRes.ok) {
           const json = await settingsRes.json();
@@ -60,8 +75,6 @@ export default function SettingsPage() {
           });
         }
 
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
           setUserEmail(user.email);
           setNewEmail(user.email);
@@ -73,7 +86,7 @@ export default function SettingsPage() {
       }
     }
     load();
-  }, []);
+  }, [router]);
 
   function handleTabChange(tab: string) {
     setActiveTab(tab);
@@ -163,7 +176,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-8 max-w-2xl">
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6 max-w-2xl">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-10 w-80" />
         <Skeleton className="h-48 w-full rounded-xl" />
@@ -173,7 +186,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6 max-w-2xl">
       {/* Header */}
       <div className="space-y-1.5">
         <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>

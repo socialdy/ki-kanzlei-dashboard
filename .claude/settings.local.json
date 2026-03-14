@@ -80,7 +80,12 @@
       "Bash(find /mnt/c/Users/marku/Desktop/ki-kanzlei\\\\ lead\\\\ dashboard -name \"*.sql\" -type f 2>/dev/null | head -20)",
       "Bash(ls -lah \"/mnt/c/Users/marku/Desktop/ki-kanzlei lead dashboard/supabase/migrations/\" | sort -k9)",
       "WebFetch(domain:dribbble.com)",
-      "WebFetch(domain:www.lemlist.com)"
+      "WebFetch(domain:www.lemlist.com)",
+      "Bash(npm install:*)",
+      "Bash(npx sharp-cli:*)",
+      "Bash(npx sharp:*)",
+      "mcp__shadcn__get_item_examples_from_registries",
+      "mcp__shadcn__view_items_in_registries"
     ]
   },
   "enableAllProjectMcpServers": true,

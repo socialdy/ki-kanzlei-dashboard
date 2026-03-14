@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { X, Trash2, Pencil, ChevronDown, CheckSquare, Sparkles } from "lucide-react";
+import { X, Trash2, Pencil, ChevronDown, CheckSquare, Sparkles, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -30,6 +30,7 @@ interface LeadSelectionBarProps {
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (status: LeadStatus) => Promise<void>;
+  onExport: (format: "csv" | "xlsx") => void;
   onSelectAll?: () => void;
   isAllSelected?: boolean;
 }
@@ -41,6 +42,7 @@ export function LeadSelectionBar({
   onEdit,
   onDelete,
   onStatusChange,
+  onExport,
   onSelectAll,
   isAllSelected = false,
 }: LeadSelectionBarProps) {
@@ -134,6 +136,39 @@ export function LeadSelectionBar({
             Bearbeiten
           </Button>
         )}
+
+        {/* Export */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1"
+            >
+              <Download className="h-3 w-3" />
+              Export
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top" className="w-40 mb-1">
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+              Format wählen
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-xs gap-2 cursor-pointer"
+              onClick={() => onExport("xlsx")}
+            >
+              Excel (.xlsx)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-xs gap-2 cursor-pointer"
+              onClick={() => onExport("csv")}
+            >
+              CSV (.csv)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Separator orientation="vertical" className="h-4 bg-white/10" />
 

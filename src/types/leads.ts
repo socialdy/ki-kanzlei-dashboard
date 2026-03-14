@@ -300,6 +300,86 @@ export const COMPANY_TYPE_OPTIONS = [
   { value: "gmbh_cokg", label: "GmbH & Co KG" },
 ] as const;
 
+/* Bundesländer (Österreich) */
+export const BUNDESLAND_OPTIONS = [
+  { value: "all", label: "Alle Bundesländer" },
+  { value: "Wien", label: "Wien" },
+  { value: "Niederösterreich", label: "Niederösterreich" },
+  { value: "Oberösterreich", label: "Oberösterreich" },
+  { value: "Steiermark", label: "Steiermark" },
+  { value: "Salzburg", label: "Salzburg" },
+  { value: "Tirol", label: "Tirol" },
+  { value: "Kärnten", label: "Kärnten" },
+  { value: "Vorarlberg", label: "Vorarlberg" },
+  { value: "Burgenland", label: "Burgenland" },
+] as const;
+
+/* Bundesländer (Deutschland) */
+export const BUNDESLAENDER_DE = [
+  { value: "all", label: "Alle Bundesländer" },
+  { value: "Bayern", label: "Bayern" },
+  { value: "Nordrhein-Westfalen", label: "Nordrhein-Westfalen" },
+  { value: "Baden-Württemberg", label: "Baden-Württemberg" },
+  { value: "Berlin", label: "Berlin" },
+  { value: "Hamburg", label: "Hamburg" },
+  { value: "Hessen", label: "Hessen" },
+  { value: "Niedersachsen", label: "Niedersachsen" },
+  { value: "Rheinland-Pfalz", label: "Rheinland-Pfalz" },
+  { value: "Sachsen", label: "Sachsen" },
+  { value: "Thüringen", label: "Thüringen" },
+  { value: "Brandenburg", label: "Brandenburg" },
+  { value: "Sachsen-Anhalt", label: "Sachsen-Anhalt" },
+  { value: "Schleswig-Holstein", label: "Schleswig-Holstein" },
+  { value: "Mecklenburg-Vorpommern", label: "Mecklenburg-Vorpommern" },
+  { value: "Saarland", label: "Saarland" },
+  { value: "Bremen", label: "Bremen" },
+] as const;
+
+/* Kantone (Schweiz) */
+export const KANTONE_CH = [
+  { value: "all", label: "Alle Kantone" },
+  { value: "Zürich", label: "Zürich" },
+  { value: "Bern", label: "Bern" },
+  { value: "Luzern", label: "Luzern" },
+  { value: "Basel-Stadt", label: "Basel-Stadt" },
+  { value: "Basel-Landschaft", label: "Basel-Landschaft" },
+  { value: "St. Gallen", label: "St. Gallen" },
+  { value: "Aargau", label: "Aargau" },
+  { value: "Thurgau", label: "Thurgau" },
+  { value: "Graubünden", label: "Graubünden" },
+  { value: "Waadt", label: "Waadt" },
+  { value: "Wallis", label: "Wallis" },
+  { value: "Genf", label: "Genf" },
+  { value: "Solothurn", label: "Solothurn" },
+  { value: "Zug", label: "Zug" },
+  { value: "Schaffhausen", label: "Schaffhausen" },
+] as const;
+
+/* DACH Länder */
+export const DACH_COUNTRIES = [
+  { value: "AT", label: "Österreich", flag: "🇦🇹" },
+  { value: "DE", label: "Deutschland", flag: "🇩🇪" },
+  { value: "CH", label: "Schweiz",     flag: "🇨🇭" },
+] as const;
+
+/** Regionen je nach Land */
+export function getRegionOptions(country: string): readonly { value: string; label: string }[] {
+  switch (country) {
+    case "DE": return BUNDESLAENDER_DE;
+    case "CH": return KANTONE_CH;
+    default:   return BUNDESLAND_OPTIONS;
+  }
+}
+
+/** Label für Region-Dropdown je nach Land */
+export function getRegionLabel(country: string): string {
+  switch (country) {
+    case "DE": return "Bundesland";
+    case "CH": return "Kanton";
+    default:   return "Bundesland";
+  }
+}
+
 export type CompanyTypeFilter = (typeof COMPANY_TYPE_OPTIONS)[number]["value"];
 
 /* Suchanfrage-Typ */

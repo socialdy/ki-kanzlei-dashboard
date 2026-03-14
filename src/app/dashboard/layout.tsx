@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserRole } from "@/lib/supabase/profiles";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Header } from "@/components/Header";
@@ -17,6 +18,11 @@ export default async function DashboardLayout({
         redirect("/login");
     }
 
+    const [role, cookieStore] = await Promise.all([
+        getUserRole(user.id),
+        cookies(),
+    ]);
+
     const sidebarUser = {
         email: user.email ?? "",
         name: (user.user_metadata?.full_name as string | null)
@@ -24,20 +30,19 @@ export default async function DashboardLayout({
             ?? null,
     };
 
-    const cookieStore = await cookies();
     const sidebarCookie = cookieStore.get("sidebar_state");
     const defaultOpen = sidebarCookie ? sidebarCookie.value === "true" : true;
 
     return (
         <SidebarProvider defaultOpen={defaultOpen}>
-            <AppSidebar user={sidebarUser} />
+            <AppSidebar user={sidebarUser} role={role} />
             <SidebarInset className="bg-background">
                 <Header />
-                <main className="flex-1 p-6 overflow-y-auto">
-                    <div className="max-w-7xl mx-auto w-full">
+                <div className="flex flex-1 flex-col">
+                    <main className="@container/main flex flex-1 flex-col overflow-y-auto">
                         {children}
-                    </div>
-                </main>
+                    </main>
+                </div>
             </SidebarInset>
         </SidebarProvider>
     );

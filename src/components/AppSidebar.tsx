@@ -58,10 +58,11 @@ interface AppSidebarProps {
         email: string;
         name?: string | null;
     };
+    role?: "admin" | "user";
 }
 
 /* ── App Sidebar ── */
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [loggingOut, setLoggingOut] = useState(false);
@@ -92,9 +93,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
                             className="hover:bg-transparent active:bg-transparent"
                         >
                             <Link href="/dashboard" className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-lg overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center">
+                                <div className="h-8 w-8 overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center rounded-lg">
                                     <Image
-                                        src="/images/KI-Kanzlei_Logo_2026.png"
+                                        src="/KI-Kanzlei_Logo_2026.png"
                                         alt="KI Kanzlei"
                                         width={128}
                                         height={128}
@@ -144,6 +145,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
+                {role === "admin" && (
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase text-[10px] tracking-wider font-semibold">
                         System
@@ -168,6 +170,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+                )}
             </SidebarContent>
 
             {/* ── Footer / User ── */}
@@ -212,7 +215,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                                             <p className="text-sm font-bold text-foreground">{displayName}</p>
                                             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                                             <Badge variant="secondary" className="mt-1 text-[9px] font-semibold uppercase tracking-wide">
-                                                Administrator
+                                                {role === "admin" ? "Administrator" : "Benutzer"}
                                             </Badge>
                                         </div>
                                     </div>
@@ -225,12 +228,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
                                             Mein Profil
                                         </Link>
                                     </DropdownMenuItem>
+                                    {role === "admin" && (
                                     <DropdownMenuItem asChild className="mx-1.5 gap-3 cursor-pointer">
                                         <Link href="/dashboard/settings">
                                             <Settings className="h-4 w-4 text-muted-foreground" />
                                             Einstellungen
                                         </Link>
                                     </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem className="mx-1.5 gap-3 cursor-pointer">
                                         <Bell className="h-4 w-4 text-muted-foreground" />
                                         Benachrichtigungen

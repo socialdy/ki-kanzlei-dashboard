@@ -4,8 +4,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "KI Kanzlei Dashboard",
-  description: "Automatisierung & KI für den Mittelstand",
+  title: {
+    default: "KI Kanzlei Dashboard",
+    template: "%s | KI Kanzlei",
+  },
+  description:
+    "Lead-Management, Outreach-Kampagnen und KI-Automatisierung für die KI Kanzlei. Leads finden, anreichern und kontaktieren — alles in einem Dashboard.",
+  keywords: ["KI Kanzlei", "Lead Dashboard", "KI-Automatisierung", "B2B Outreach", "Lead Management"],
+  authors: [{ name: "KI Kanzlei", url: "https://www.ki-kanzlei.at" }],
+  openGraph: {
+    title: "KI Kanzlei Dashboard",
+    description: "Lead-Management, Outreach-Kampagnen und KI-Automatisierung — alles in einem Dashboard.",
+    siteName: "KI Kanzlei",
+    locale: "de_AT",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

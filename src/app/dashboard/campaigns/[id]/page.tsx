@@ -189,7 +189,7 @@ export default function CampaignDetailPage() {
   /* ── Loading State ── */
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
         <Skeleton className="h-10 w-72" />
         <div className="grid grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -208,7 +208,7 @@ export default function CampaignDetailPage() {
   const hasFilters = searchFilter || statusFilter !== "all";
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between">

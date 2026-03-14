@@ -3,20 +3,20 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Search, MapPin, Building2, Sparkles, Workflow } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+  Card,
+  CardContent,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import {
@@ -26,17 +26,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { COMPANY_TYPE_OPTIONS } from "@/types/leads";
+import {
+  COMPANY_TYPE_OPTIONS,
+  DACH_COUNTRIES,
+  getRegionOptions,
+  getRegionLabel,
+} from "@/types/leads";
 
-const searchSchema = z.object({
-  query: z.string().min(2, "Mindestens 2 Zeichen"),
-  location: z.string().min(2, "Bitte einen Ort angeben"),
-  company_type: z.string().optional(),
-});
+const searchSchema = z
+  .object({
+    country:      z.string().min(2),
+    query:        z.string().optional(),
+    location:     z.string().optional(),
+    city:         z.string().optional(),
+    company_type: z.string().optional(),
+    require_ceo:  z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasQuery = data.query && data.query.trim().length >= 2;
+    const hasCity  = data.city && data.city.trim().length >= 1;
+
+    if (!hasQuery && !hasCity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bitte Branche oder Stadt angeben",
+        path: ["query"],
+      });
+    }
+
+    if (hasQuery && !hasCity && !data.location) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Bitte Region wählen oder Stadt eingeben",
+        path: ["location"],
+      });
+    }
+  });
 
 type SearchFormValues = z.infer<typeof searchSchema>;
-
-export type SearchSource = "native" | "n8n";
+export type SearchSource = "native";
 
 interface LeadSearchFormProps {
   onSubmit: (values: SearchFormValues, source: SearchSource) => Promise<void>;
@@ -44,101 +72,99 @@ interface LeadSearchFormProps {
   searchSource?: SearchSource | null;
 }
 
-export function LeadSearchForm({ onSubmit, isSearching, searchSource }: LeadSearchFormProps) {
+export function LeadSearchForm({ onSubmit, isSearching }: LeadSearchFormProps) {
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchSchema),
-    defaultValues: { query: "", location: "", company_type: undefined },
+    defaultValues: {
+      country: "AT", query: "", location: "", city: "",
+      company_type: "all", require_ceo: false,
+    },
   });
 
-  async function handleSubmit(source: SearchSource) {
+  const selectedCountry = form.watch("country");
+  const regionOptions = getRegionOptions(selectedCountry);
+  const regionLabel = getRegionLabel(selectedCountry);
+
+  function handleCountryChange(value: string) {
+    form.setValue("country", value);
+    form.setValue("location", "");
+    form.clearErrors();
+  }
+
+  async function handleSubmit() {
     const valid = await form.trigger();
     if (!valid) return;
     const values = form.getValues();
-    await onSubmit(values, source);
-    form.reset();
+    await onSubmit({ ...values, company_type: values.company_type === "all" ? undefined : values.company_type }, "native");
+    form.reset({ country: values.country });
   }
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-medium leading-tight">Neue Suche starten</p>
-            <p className="text-[11px] text-muted-foreground leading-tight">
-              Unternehmen finden · inkl. Kontaktdaten & Social Media
-            </p>
-          </div>
-        </div>
+    <Form {...form}>
+      <Card>
+        <CardContent className="pt-5">
+          <div className="space-y-3">
 
-        <Form {...form}>
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="space-y-3"
-          >
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Row 1: Branche + Land */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="query"
                 render={({ field }) => (
-                  <FormItem className="flex-1">
+                  <FormItem className="min-w-0">
+                    <FormLabel>Branche *</FormLabel>
                     <FormControl>
-                      <InputGroup className="h-9">
-                        <InputGroupAddon>
-                          <Search className="h-3.5 w-3.5" />
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          placeholder="Branche, z.B. Steuerberater"
-                          className="text-sm"
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                        <Input
+                          placeholder="z.B. Steuerberater"
+                          className="pl-9"
                           {...field}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
                         />
-                      </InputGroup>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <FormItem className="min-w-0">
+                <FormLabel>Land *</FormLabel>
+                <Select value={selectedCountry} onValueChange={handleCountryChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DACH_COUNTRIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            </div>
+
+            {/* Row 2: Region + Stadt */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="location"
                 render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormControl>
-                      <InputGroup className="h-9">
-                        <InputGroupAddon>
-                          <MapPin className="h-3.5 w-3.5" />
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          placeholder="Ort, z.B. Wien, Salzburg"
-                          className="text-sm"
-                          {...field}
-                        />
-                      </InputGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="company_type"
-                render={({ field }) => (
-                  <FormItem className="w-full sm:w-[180px]">
+                  <FormItem className="min-w-0">
+                    <FormLabel>{regionLabel}</FormLabel>
                     <Select
-                      onValueChange={(val) => field.onChange(val === "all" ? undefined : val)}
-                      value={field.value ?? "all"}
+                      onValueChange={(val) => { field.onChange(val === "all" ? "" : val); form.clearErrors("location"); }}
+                      value={field.value || "all"}
                     >
                       <FormControl>
-                        <SelectTrigger className="h-9 text-sm w-full">
-                          <Building2 className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
-                          <SelectValue placeholder="Rechtsform" />
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={`Alle ${regionLabel === "Kanton" ? "Kantone" : "Bundesländer"}`} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="all">Alle Rechtsformen</SelectItem>
-                        {COMPANY_TYPE_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
+                        {regionOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.label}
                           </SelectItem>
@@ -149,42 +175,96 @@ export function LeadSearchForm({ onSubmit, isSearching, searchSource }: LeadSear
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Stadt / Ort</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="z.B. Salzburg"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {/* Two search buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            {/* Row 3: Rechtsform */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="company_type"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Rechtsform</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "all"}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Alle Rechtsformen" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {COMPANY_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Row 4: Checkbox + Button */}
+            <div className="flex items-center justify-between pt-2">
+              <FormField
+                control={form.control}
+                name="require_ceo"
+                render={({ field }) => (
+                  <FormItem className="space-y-0">
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          id="require-ceo"
+                        />
+                      </FormControl>
+                      <label htmlFor="require-ceo" className="text-sm cursor-pointer leading-none">
+                        Nur mit Geschäftsführer
+                      </label>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
               <Button
                 type="button"
                 disabled={isSearching}
-                className="h-9 px-5"
-                onClick={() => handleSubmit("native")}
+                className="gap-2"
+                onClick={handleSubmit}
               >
-                {isSearching && searchSource === "native" ? (
-                  <Spinner className="h-3.5 w-3.5 mr-1.5" />
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Search className="h-3.5 w-3.5 mr-1.5" />
+                  <Search className="h-4 w-4" />
                 )}
-                {isSearching && searchSource === "native" ? "Läuft..." : "Native Suche"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSearching}
-                className="h-9 px-5"
-                onClick={() => handleSubmit("n8n")}
-              >
-                {isSearching && searchSource === "n8n" ? (
-                  <Spinner className="h-3.5 w-3.5 mr-1.5" />
-                ) : (
-                  <Workflow className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                {isSearching && searchSource === "n8n" ? "Läuft..." : "n8n Suche"}
+                {isSearching ? "Suche läuft…" : "Leads suchen"}
               </Button>
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+
+          </div>
+        </CardContent>
+      </Card>
+    </Form>
   );
 }
 

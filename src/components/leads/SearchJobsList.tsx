@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import {
   Search,
   Clock,
@@ -7,9 +9,11 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,9 +51,37 @@ function formatTime(dateStr: string | null): string {
 interface SearchJobsListProps {
   jobs: SearchJob[];
   loading: boolean;
+  onJobCancelled?: (jobId: string) => void;
 }
 
-export function SearchJobsList({ jobs, loading }: SearchJobsListProps) {
+export function SearchJobsList({ jobs, loading, onJobCancelled }: SearchJobsListProps) {
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
+
+  async function handleCancel(job: SearchJob) {
+    setCancellingIds((prev) => new Set(prev).add(job.id));
+    try {
+      const res = await fetch(`/api/leads/search/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "failed",
+          error_message: "Vom Benutzer abgebrochen",
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Suche "${job.query}" abgebrochen`);
+      onJobCancelled?.(job.id);
+    } catch {
+      toast.error("Abbrechen fehlgeschlagen");
+    } finally {
+      setCancellingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -84,6 +116,7 @@ export function SearchJobsList({ jobs, loading }: SearchJobsListProps) {
               const statusCfg = JOB_STATUS_CONFIG[job.status];
               const isActive =
                 job.status === "pending" || job.status === "running";
+              const isCancelling = cancellingIds.has(job.id);
               return (
                 <div
                   key={job.id}
@@ -146,15 +179,32 @@ export function SearchJobsList({ jobs, loading }: SearchJobsListProps) {
                     )}
                   </div>
 
-                  <Badge
-                    variant={statusCfg.variant}
-                    className={cn(
-                      "shrink-0",
-                      job.status === "running" && "animate-pulse",
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isActive && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleCancel(job)}
+                        disabled={isCancelling}
+                      >
+                        {isCancelling ? (
+                          <Spinner className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Square className="h-3 w-3 mr-1 fill-current" />
+                        )}
+                        Stopp
+                      </Button>
                     )}
-                  >
-                    {statusCfg.label}
-                  </Badge>
+                    <Badge
+                      variant={statusCfg.variant}
+                      className={cn(
+                        job.status === "running" && "animate-pulse",
+                      )}
+                    >
+                      {statusCfg.label}
+                    </Badge>
+                  </div>
                 </div>
               );
             })}

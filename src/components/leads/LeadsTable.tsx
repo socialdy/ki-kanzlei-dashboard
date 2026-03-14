@@ -117,7 +117,7 @@ export function LeadsTable({
 
   return (
     <div className="overflow-x-auto">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent border-b">
@@ -139,49 +139,30 @@ export function LeadsTable({
           {table.getRowModel().rows.map((row) => {
             const lead = row.original;
             const cfg = LEAD_STATUS_CONFIG[lead.status];
-            const cells = row.getVisibleCells();
-            const checkboxCell = cells.find((c) => c.column.id === "select");
-            const otherCells = cells.filter((c) => c.column.id !== "select");
             return (
               <ContextMenu key={row.id}>
-                <TableRow
-                  className={cn(
-                    "h-12 cursor-pointer transition-colors group",
-                    row.getIsSelected()
-                      ? "bg-primary/5 hover:bg-primary/8"
-                      : "hover:bg-muted/40",
-                  )}
-                >
-                  {/* Checkbox-Zelle außerhalb des ContextMenuTriggers */}
-                  {checkboxCell && (
-                    <TableCell
-                      key={checkboxCell.id}
-                      className="py-2 px-3"
-                    >
-                      {flexRender(checkboxCell.column.columnDef.cell, checkboxCell.getContext())}
-                    </TableCell>
-                  )}
-                  {/* Rest der Zellen im ContextMenuTrigger */}
-                  <ContextMenuTrigger asChild>
-                    <td
-                      colSpan={otherCells.length}
-                      className="p-0"
-                      onClick={() => onEditLead(lead)}
-                    >
-                      <div className="flex items-center">
-                        {otherCells.map((cell) => (
-                          <div
-                            key={cell.id}
-                            className="py-2 px-3 shrink-0"
-                            style={{ width: cell.column.getSize() }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                  </ContextMenuTrigger>
-                </TableRow>
+                <ContextMenuTrigger asChild>
+                  <TableRow
+                    className={cn(
+                      "h-12 cursor-pointer transition-colors group",
+                      row.getIsSelected()
+                        ? "bg-primary/5 hover:bg-primary/8"
+                        : "hover:bg-muted/40",
+                    )}
+                    onClick={() => onEditLead(lead)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className="py-2 px-3"
+                        style={{ width: cell.column.getSize() }}
+                        onClick={cell.column.id === "select" ? (e) => e.stopPropagation() : undefined}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </ContextMenuTrigger>
                 <ContextMenuContent className="w-48">
                   <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
                     Aktionen

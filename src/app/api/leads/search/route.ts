@@ -54,7 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Request-Body parsen und validieren
-    let body: { query?: string; location?: string; country?: string; company_type?: string };
+    let body: {
+      query?: string;
+      location?: string;
+      country?: string;
+      company_type?: string;
+      city?: string;
+      require_ceo?: boolean;
+    };
     try {
       body = await request.json();
     } catch {
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { query, location, country = "AT", company_type = "all" } = body;
+    const { query, location, country = "AT", company_type = "all", city, require_ceo = false } = body;
 
     if (!query || typeof query !== "string" || query.trim().length === 0) {
       return NextResponse.json(
@@ -81,10 +88,11 @@ export async function POST(request: NextRequest) {
     }
 
     // SearchJob in der Datenbank erstellen
+    const displayLocation = city ? `${city} (${location})` : location;
     const searchJob = await createSearchJob({
       user_id: user.id,
       query: query.trim(),
-      location: location.trim(),
+      location: displayLocation,
       country,
     });
 
@@ -96,6 +104,8 @@ export async function POST(request: NextRequest) {
       location: location.trim(),
       country,
       companyType: company_type,
+      city: city?.trim() || undefined,
+      requireCeo: require_ceo,
     }).catch((err) => {
       console.error(`[API] Pipeline-Fehler für Job ${searchJob.id}:`, err);
     });

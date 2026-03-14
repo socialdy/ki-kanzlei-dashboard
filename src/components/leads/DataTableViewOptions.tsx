@@ -12,6 +12,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const COLUMN_LABELS: Record<string, string> = {
+  company:  "Firma",
+  industry: "Branche",
+  city:     "Ort",
+  contact:  "Kontakt",
+  website:  "Website",
+  social:   "Social Media",
+  status:   "Status",
+};
+
 interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
 }
@@ -36,11 +46,11 @@ export function DataTableViewOptions<TData>({
           .map((column) => (
             <DropdownMenuCheckboxItem
               key={column.id}
-              className="text-sm capitalize"
+              className="text-sm"
               checked={column.getIsVisible()}
               onCheckedChange={(value) => column.toggleVisibility(!!value)}
             >
-              {column.id}
+              {COLUMN_LABELS[column.id] ?? column.id}
             </DropdownMenuCheckboxItem>
           ))}
       </DropdownMenuContent>

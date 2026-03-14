@@ -18,7 +18,56 @@ interface PipelineParams {
   location: string;
   country: string;
   companyType?: string;
+  city?: string;
+  requireCeo?: boolean;
 }
+
+/* ── Region → Städte Mappings (AT / DE / CH) ── */
+const REGION_CITIES: Record<string, string[]> = {
+  // ── Österreich ──
+  "Wien": ["Wien"],
+  "Niederösterreich": ["St. Pölten", "Wiener Neustadt", "Baden", "Krems an der Donau", "Amstetten", "Mödling", "Korneuburg", "Tulln", "Zwettl", "Mistelbach"],
+  "Oberösterreich": ["Linz", "Wels", "Steyr", "Leonding", "Traun", "Braunau am Inn", "Ried im Innkreis", "Vöcklabruck", "Gmunden", "Enns"],
+  "Steiermark": ["Graz", "Leoben", "Kapfenberg", "Bruck an der Mur", "Leibnitz", "Feldbach", "Weiz", "Hartberg", "Judenburg", "Voitsberg"],
+  "Salzburg": ["Salzburg", "Hallein", "Wals-Siezenheim", "Seekirchen", "Saalfelden", "Bischofshofen", "St. Johann im Pongau", "Zell am See"],
+  "Tirol": ["Innsbruck", "Kufstein", "Schwaz", "Hall in Tirol", "Wörgl", "Lienz", "Telfs", "Imst", "Landeck", "Reutte"],
+  "Kärnten": ["Klagenfurt", "Villach", "Wolfsberg", "Spittal an der Drau", "Feldkirchen", "St. Veit an der Glan", "Völkermarkt", "Hermagor"],
+  "Vorarlberg": ["Bregenz", "Dornbirn", "Feldkirch", "Bludenz", "Hohenems", "Lustenau", "Hard", "Rankweil", "Götzis"],
+  "Burgenland": ["Eisenstadt", "Oberwart", "Neusiedl am See", "Güssing", "Jennersdorf", "Mattersburg", "Oberpullendorf"],
+  // ── Deutschland ──
+  "Bayern": ["München", "Nürnberg", "Augsburg", "Regensburg", "Würzburg", "Ingolstadt", "Fürth", "Erlangen", "Bayreuth", "Landshut"],
+  "Nordrhein-Westfalen": ["Köln", "Düsseldorf", "Dortmund", "Essen", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster"],
+  "Baden-Württemberg": ["Stuttgart", "Mannheim", "Karlsruhe", "Freiburg im Breisgau", "Heidelberg", "Ulm", "Heilbronn", "Pforzheim", "Reutlingen", "Konstanz"],
+  "Berlin": ["Berlin"],
+  "Hamburg": ["Hamburg"],
+  "Hessen": ["Frankfurt am Main", "Wiesbaden", "Kassel", "Darmstadt", "Hanau", "Offenbach am Main", "Marburg", "Gießen", "Fulda", "Wetzlar"],
+  "Niedersachsen": ["Hannover", "Braunschweig", "Osnabrück", "Oldenburg", "Göttingen", "Wolfsburg", "Salzgitter", "Hildesheim", "Lüneburg", "Hameln"],
+  "Rheinland-Pfalz": ["Mainz", "Ludwigshafen", "Koblenz", "Trier", "Kaiserslautern", "Worms", "Neuwied", "Neustadt an der Weinstraße"],
+  "Sachsen": ["Leipzig", "Dresden", "Chemnitz", "Zwickau", "Erfurt", "Plauen", "Görlitz", "Freiberg", "Bautzen"],
+  "Thüringen": ["Erfurt", "Jena", "Gera", "Weimar", "Gotha", "Suhl", "Nordhausen", "Eisenach"],
+  "Brandenburg": ["Potsdam", "Cottbus", "Brandenburg an der Havel", "Frankfurt an der Oder", "Oranienburg", "Eberswalde"],
+  "Sachsen-Anhalt": ["Halle", "Magdeburg", "Dessau-Roßlau", "Lutherstadt Wittenberg", "Stendal", "Merseburg"],
+  "Schleswig-Holstein": ["Kiel", "Lübeck", "Flensburg", "Neumünster", "Norderstedt", "Elmshorn", "Pinneberg"],
+  "Mecklenburg-Vorpommern": ["Rostock", "Schwerin", "Neubrandenburg", "Stralsund", "Greifswald", "Wismar"],
+  "Saarland": ["Saarbrücken", "Neunkirchen", "Homburg", "Völklingen", "Saarlouis", "Merzig"],
+  "Bremen": ["Bremen", "Bremerhaven"],
+  // ── Schweiz ──
+  "Zürich": ["Zürich", "Winterthur", "Uster", "Dübendorf", "Dietikon", "Kloten", "Regensdorf"],
+  "Bern": ["Bern", "Biel", "Thun", "Köniz", "Ostermundigen", "Steffisburg", "Langenthal"],
+  "Luzern": ["Luzern", "Kriens", "Emmen", "Horw", "Littau", "Sursee", "Willisau"],
+  "Basel-Stadt": ["Basel"],
+  "Basel-Landschaft": ["Liestal", "Allschwil", "Reinach", "Binningen", "Birsfelden", "Arlesheim"],
+  "St. Gallen": ["St. Gallen", "Rapperswil-Jona", "Wil", "Gossau", "Arbon", "Rorschach"],
+  "Aargau": ["Aarau", "Baden", "Wettingen", "Brugg", "Rheinfelden", "Zofingen", "Lenzburg"],
+  "Thurgau": ["Frauenfeld", "Kreuzlingen", "Arbon", "Amriswil", "Weinfelden"],
+  "Graubünden": ["Chur", "Davos", "St. Moritz", "Arosa", "Ilanz"],
+  "Waadt": ["Lausanne", "Montreux", "Renens", "Nyon", "Yverdon-les-Bains", "Morges"],
+  "Wallis": ["Sion", "Sitten", "Brig-Glis", "Visp", "Monthey", "Martigny"],
+  "Genf": ["Genf", "Carouge", "Lancy", "Meyrin", "Vernier", "Onex"],
+  "Solothurn": ["Solothurn", "Olten", "Grenchen", "Bettlach", "Biberist"],
+  "Zug": ["Zug", "Baar", "Cham", "Steinhausen", "Risch-Rotkreuz"],
+  "Schaffhausen": ["Schaffhausen", "Neuhausen am Rheinfall", "Kreuzlingen"],
+};
 
 interface GooglePlace {
   id: string;
@@ -153,18 +202,47 @@ function selectBestEmail(emails: string[], companyWebsite: string): string | nul
    ══════════════════════════════════════════════════════ */
 
 export async function runEnrichmentPipeline(params: PipelineParams): Promise<void> {
-  const { jobId, userId, query, location, country, companyType = "all" } = params;
+  const { jobId, userId, query, location, country, companyType = "all", city, requireCeo = false } = params;
 
   try {
     const startTime = Date.now();
     await updateJobStatus(jobId, "running", { started_at: new Date().toISOString() });
-    console.log(`[Pipeline] Start: "${query} in ${location}" (Job: ${jobId})`);
 
-    // Google Places Suche (bis 3 Seiten = max 60 Ergebnisse)
-    const places = await searchGooglePlaces(query, location);
-    console.log(`[Pipeline] ${places.length} Places gefunden`);
+    // Determine search locations: specific city, or Bundesland → expand to cities
+    let searchLocations: string[];
+    if (city) {
+      // User specified a specific city
+      searchLocations = [city];
+      console.log(`[Pipeline] Start: "${query}" in Stadt "${city}" (Job: ${jobId})`);
+    } else if (REGION_CITIES[location]) {
+      // Region selected → search all cities
+      searchLocations = REGION_CITIES[location];
+      console.log(`[Pipeline] Start: "${query}" in ${location} (${searchLocations.length} Städte) (Job: ${jobId})`);
+    } else {
+      // Fallback: use location as-is
+      searchLocations = [location];
+      console.log(`[Pipeline] Start: "${query} in ${location}" (Job: ${jobId})`);
+    }
 
-    if (places.length === 0) {
+    // Google Places Suche über alle Städte
+    const allPlaces: GooglePlace[] = [];
+    const seenPlaceIds = new Set<string>();
+
+    for (const loc of searchLocations) {
+      console.log(`[Pipeline] Suche in: "${query} in ${loc}"`);
+      const places = await searchGooglePlaces(query, loc);
+      // Deduplicate by Google Place ID
+      for (const p of places) {
+        if (!seenPlaceIds.has(p.id)) {
+          seenPlaceIds.add(p.id);
+          allPlaces.push(p);
+        }
+      }
+    }
+
+    console.log(`[Pipeline] ${allPlaces.length} Places gefunden (${searchLocations.length} Städte durchsucht)`);
+
+    if (allPlaces.length === 0) {
       await updateJobStatus(jobId, "completed", {
         results_count: 0,
         total_count: 0,
@@ -173,15 +251,15 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
       return;
     }
 
-    await updateJobStatus(jobId, "running", { total_count: places.length });
+    await updateJobStatus(jobId, "running", { total_count: allPlaces.length });
 
     // Für jede Firma: Enrichment
     let resultsCount = 0;
     let processedCount = 0;
     const timings: number[] = [];
 
-    for (let i = 0; i < places.length; i++) {
-      const place = places[i];
+    for (let i = 0; i < allPlaces.length; i++) {
+      const place = allPlaces[i];
       const companyName = place.displayName?.text || "Unbekannt";
       const companyStart = Date.now();
 
@@ -189,7 +267,7 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
       if (i > 0 && i % 5 === 0) {
         const cancelled = await isJobCancelled(jobId);
         if (cancelled) {
-          console.log(`[Pipeline] Job ${jobId} abgebrochen bei ${i}/${places.length}`);
+          console.log(`[Pipeline] Job ${jobId} abgebrochen bei ${i}/${allPlaces.length}`);
           await updateJobStatus(jobId, "failed", {
             error_message: "Vom Benutzer abgebrochen",
             completed_at: new Date().toISOString(),
@@ -199,13 +277,15 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
       }
 
       try {
-        console.log(`[Pipeline] [${i + 1}/${places.length}] ${companyName}`);
+        console.log(`[Pipeline] [${i + 1}/${allPlaces.length}] ${companyName}`);
         const lead = await enrichAndBuildLead(place, query, location, country, userId, jobId);
 
         if (!lead) {
           console.log(`[Pipeline]   → Skip (keine valide Email)`);
         } else if (companyType !== "all" && lead.legal_form && !matchesCompanyType(lead.legal_form, companyType)) {
           console.log(`[Pipeline]   → Skip (Rechtsform ${lead.legal_form} ≠ ${companyType})`);
+        } else if (requireCeo && !lead.ceo_name) {
+          console.log(`[Pipeline]   → Skip (kein Geschäftsführer gefunden, requireCeo aktiv)`);
         } else {
           const { error } = await getSupabaseAdmin().from("leads").insert(lead);
           if (error) {
@@ -220,7 +300,7 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
 
       processedCount++;
       timings.push(Date.now() - companyStart);
-      await updateETA(jobId, resultsCount, processedCount, places.length, timings);
+      await updateETA(jobId, resultsCount, processedCount, allPlaces.length, timings);
     }
 
     await updateJobStatus(jobId, "completed", {
@@ -558,7 +638,7 @@ async function enrichAndBuildLead(
     postal_code: aiResult?.postal_code || fallbackAddress.postalCode || null,
     country: aiResult?.country || fallbackAddress.country || country,
     category: null,
-    industry: aiResult?.industry || query,
+    industry: aiResult?.industry || capitalizeFirst(query),
     legal_form: aiResult?.legal_form || null,
     employee_count: null,
     ceo_name: ceoName,
@@ -666,6 +746,11 @@ async function isJobCancelled(jobId: string): Promise<boolean> {
     .single();
 
   return data?.status === "failed";
+}
+
+function capitalizeFirst(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function sleep(ms: number): Promise<void> {
