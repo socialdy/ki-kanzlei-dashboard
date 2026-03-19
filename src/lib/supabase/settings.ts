@@ -3,16 +3,63 @@
 import { createClient } from "./server";
 import { getSupabaseAdmin } from "./admin";
 
+export interface LinkedInSenderProfile {
+  name?: string;
+  position?: string;
+  company?: string;
+  specialization?: string;
+  tone?: string;
+}
+
 export interface UserSettings {
   user_id: string;
   n8n_webhook_url: string | null;
   gemini_api_key: string | null;
+  /* CRM-Export */
+  hubspot_api_key: string | null;
+  pipedrive_api_key: string | null;
+  pipedrive_domain: string | null;
+  salesforce_instance_url: string | null;
+  salesforce_access_token: string | null;
+  zoho_client_id: string | null;
+  zoho_client_secret: string | null;
+  zoho_refresh_token: string | null;
+  webhook_url: string | null;
+  /* Unipile / LinkedIn */
+  unipile_api_key: string | null;
+  unipile_dsn: string | null;
+  unipile_account_id: string | null;
+  linkedin_daily_limit: number | null;
+  linkedin_auto_outreach: boolean | null;
+  linkedin_follow_up_days: number | null;
+  linkedin_sender_profile: LinkedInSenderProfile | null;
+  linkedin_outreach_template: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type UserSettingsUpdate = Partial<
-  Pick<UserSettings, "n8n_webhook_url" | "gemini_api_key">
+  Pick<UserSettings,
+    | "n8n_webhook_url"
+    | "gemini_api_key"
+    | "hubspot_api_key"
+    | "pipedrive_api_key"
+    | "pipedrive_domain"
+    | "salesforce_instance_url"
+    | "salesforce_access_token"
+    | "zoho_client_id"
+    | "zoho_client_secret"
+    | "zoho_refresh_token"
+    | "webhook_url"
+    | "unipile_api_key"
+    | "unipile_dsn"
+    | "unipile_account_id"
+    | "linkedin_daily_limit"
+    | "linkedin_auto_outreach"
+    | "linkedin_follow_up_days"
+    | "linkedin_sender_profile"
+    | "linkedin_outreach_template"
+  >
 >;
 
 export async function getUserSettings(

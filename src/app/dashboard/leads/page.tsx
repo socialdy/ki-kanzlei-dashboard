@@ -108,6 +108,7 @@ export default function LeadScrapingPage() {
   const [editOpen, setEditOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteIds, setDeleteIds]   = useState<string[]>([]);
+  const [crmSettings, setCrmSettings] = useState<Record<string, string | null>>({});
 
   /* ── Filter State ── */
   const [filterSearch, setFilterSearch]     = useState("");
@@ -131,6 +132,18 @@ export default function LeadScrapingPage() {
     setFilterLegalForm("all");
     setLeadsPage(1);
   }
+
+  /* ── Fetch CRM settings ── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.data) setCrmSettings(json.data);
+      } catch { /* silent */ }
+    })();
+  }, []);
 
   /* ── Fetch industries ── */
   useEffect(() => {
@@ -788,7 +801,15 @@ export default function LeadScrapingPage() {
       <LeadSelectionBar
         selectedCount={selectedIds.size}
         totalCount={leadsCount}
-        isAllSelected={isGlobalSelected}
+        selectedIds={Array.from(selectedIds)}
+        isGlobalSelected={isGlobalSelected}
+        filters={{
+          search: filterSearch || undefined,
+          status: filterStatus === "all" ? undefined : (filterStatus as LeadStatus),
+          industry: filterIndustry,
+          legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+        }}
+        crmSettings={crmSettings}
         onClear={() => {
           setSelectedIds(new Set());
           setIsGlobalSelected(false);

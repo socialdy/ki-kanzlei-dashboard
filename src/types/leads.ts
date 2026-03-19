@@ -12,6 +12,8 @@ export interface LeadFilters {
   legal_form?: string;
   /** Volltextsuche über Name, Firma, E-Mail */
   search?: string;
+  /** ID-basierter Filter für CRM-Export */
+  ids?: string[];
 }
 
 export interface SortOptions {

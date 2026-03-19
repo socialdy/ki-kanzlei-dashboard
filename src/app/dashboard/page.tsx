@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Users, Send, TrendingUp, TrendingDown,
   ArrowUpRight, MailOpen, Reply,
+  Linkedin, UserPlus, MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,26 @@ export default async function DashboardOverview() {
     .from("leads")
     .select("*", { count: "exact", head: true })
     .eq("status", "closed");
+
+  /* ── LinkedIn Stats ── */
+  const { count: linkedinTotal } = await supabase
+    .from("linkedin_leads")
+    .select("*", { count: "exact", head: true });
+
+  const { count: linkedinInvited } = await supabase
+    .from("linkedin_leads")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["invited", "accepted", "messaged", "replied"]);
+
+  const { count: linkedinAccepted } = await supabase
+    .from("linkedin_leads")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["accepted", "messaged", "replied"]);
+
+  const { count: linkedinReplied } = await supabase
+    .from("linkedin_leads")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "replied");
 
   /* ── Campaign Stats ── */
   const { data: campaigns } = await supabase
@@ -150,6 +171,45 @@ export default async function DashboardOverview() {
     },
   ];
 
+  /* ── LinkedIn KPI cards ── */
+  const liTotal = linkedinTotal ?? 0;
+  const liInvited = linkedinInvited ?? 0;
+  const liAccepted = linkedinAccepted ?? 0;
+  const liReplied = linkedinReplied ?? 0;
+  const liAcceptRate = liInvited > 0 ? ((liAccepted / liInvited) * 100).toFixed(1) : "0";
+  const liReplyRate = liAccepted > 0 ? ((liReplied / liAccepted) * 100).toFixed(1) : "0";
+
+  const linkedinKpis = [
+    {
+      label: "LinkedIn Leads",
+      value: liTotal.toLocaleString("de-DE"),
+      trend: `${liInvited} eingeladen`,
+      trendUp: liTotal > 0,
+      Icon: Linkedin,
+    },
+    {
+      label: "Eingeladen",
+      value: liInvited.toLocaleString("de-DE"),
+      trend: liTotal > 0 ? `${((liInvited / liTotal) * 100).toFixed(0)}% gesendet` : "0%",
+      trendUp: liInvited > 0,
+      Icon: UserPlus,
+    },
+    {
+      label: "Akzeptiert",
+      value: liAccepted.toLocaleString("de-DE"),
+      trend: `${liAcceptRate}% Accept Rate`,
+      trendUp: Number(liAcceptRate) > 20,
+      Icon: MessageSquare,
+    },
+    {
+      label: "Antworten",
+      value: liReplied.toLocaleString("de-DE"),
+      trend: `${liReplyRate}% Reply Rate`,
+      trendUp: Number(liReplyRate) > 5,
+      Icon: Reply,
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
 
@@ -192,6 +252,59 @@ export default async function DashboardOverview() {
           </Card>
         ))}
       </div>
+
+      {/* ── LinkedIn KPI Cards ── */}
+      {liTotal > 0 && (
+        <div className="px-4 lg:px-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-md bg-blue-100 flex items-center justify-center">
+                <Linkedin className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <h2 className="text-sm font-semibold">LinkedIn Outreach</h2>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs gap-1.5" asChild>
+              <Link href="/dashboard/linkedin">
+                Alle anzeigen
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 *:data-[slot=card]:shadow-xs *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-blue-500/5 *:data-[slot=card]:to-card">
+            {linkedinKpis.map(({ label, value, trend, trendUp, Icon }) => (
+              <Card key={label} className="@container/card">
+                <CardHeader>
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </CardDescription>
+                  <CardTitle className="text-2xl font-bold tabular-nums @[250px]/card:text-3xl">
+                    {value}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "gap-1",
+                        trendUp
+                          ? "text-blue-600 border-blue-200 bg-blue-50"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {trendUp ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3" />
+                      )}
+                      {trend}
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @3xl/main:grid-cols-2">

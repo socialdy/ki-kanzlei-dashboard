@@ -1,0 +1,187 @@
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  X, Trash2, ChevronDown, CheckSquare, Sparkles,
+  ListPlus, Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { LinkedInLeadStatus } from "@/types/linkedin";
+
+import { LINKEDIN_STATUS_CONFIG } from "@/types/linkedin";
+
+const STATUS_OPTIONS: { value: LinkedInLeadStatus; label: string; dot: string }[] = [
+  { value: "new",      label: "Neu",           dot: LINKEDIN_STATUS_CONFIG.new.dot },
+  { value: "analyzed", label: "Analysiert",    dot: LINKEDIN_STATUS_CONFIG.analyzed.dot },
+  { value: "queued",   label: "Warteschlange", dot: LINKEDIN_STATUS_CONFIG.queued.dot },
+  { value: "invited",  label: "Eingeladen",    dot: LINKEDIN_STATUS_CONFIG.invited.dot },
+  { value: "accepted", label: "Akzeptiert",    dot: LINKEDIN_STATUS_CONFIG.accepted.dot },
+  { value: "declined", label: "Abgelehnt",     dot: LINKEDIN_STATUS_CONFIG.declined.dot },
+];
+
+interface LinkedInSelectionBarProps {
+  selectedCount: number;
+  totalCount?: number;
+  selectedIds: string[];
+  onClear: () => void;
+  onDelete: () => void;
+  onStatusChange: (status: LinkedInLeadStatus) => Promise<void>;
+  onAnalyze: () => Promise<void>;
+  onSelectAll?: () => void;
+}
+
+export function LinkedInSelectionBar({
+  selectedCount,
+  totalCount,
+  selectedIds,
+  onClear,
+  onDelete,
+  onStatusChange,
+  onAnalyze,
+  onSelectAll,
+}: LinkedInSelectionBarProps) {
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  if (selectedCount === 0) return null;
+
+  async function handleStatusChange(status: LinkedInLeadStatus) {
+    setChangingStatus(true);
+    try {
+      await onStatusChange(status);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Status konnte nicht geändert werden");
+    } finally {
+      setChangingStatus(false);
+    }
+  }
+
+  async function handleAnalyze() {
+    setAnalyzing(true);
+    try {
+      await onAnalyze();
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-3 fade-in duration-150">
+      <div className="flex items-center gap-0.5 border border-white/10 bg-foreground/95 backdrop-blur-xl shadow-xl px-2 py-1.5 rounded-xl">
+        {/* Count */}
+        <div className="flex items-center gap-1.5 px-2 mr-0.5">
+          <CheckSquare className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-semibold text-white whitespace-nowrap">
+            {selectedCount} ausgewählt
+          </span>
+        </div>
+
+        {/* Select All */}
+        {onSelectAll && totalCount && totalCount > selectedCount && (
+          <>
+            <Separator orientation="vertical" className="h-4 bg-white/10" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-xs text-primary hover:text-primary hover:bg-white/10 gap-1.5"
+              onClick={onSelectAll}
+            >
+              <Sparkles className="h-3 w-3" />
+              Alle {totalCount}
+            </Button>
+          </>
+        )}
+
+        <Separator orientation="vertical" className="h-4 bg-white/10" />
+
+        {/* AI Analyse */}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={analyzing}
+          className="h-7 px-2.5 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1"
+          onClick={handleAnalyze}
+        >
+          {analyzing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          Analysieren
+        </Button>
+
+        {/* In Queue */}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={changingStatus}
+          className="h-7 px-2.5 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1"
+          onClick={() => handleStatusChange("queued")}
+        >
+          <ListPlus className="h-3 w-3" />
+          Warteschlange
+        </Button>
+
+        {/* Status */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={changingStatus}
+              className="h-7 px-2.5 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1"
+            >
+              Status
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top" className="w-44 mb-1">
+            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+              Status setzen auf…
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {STATUS_OPTIONS.map((opt) => (
+              <DropdownMenuItem
+                key={opt.value}
+                onClick={() => handleStatusChange(opt.value)}
+                className="text-xs gap-2 cursor-pointer"
+              >
+                <span className={`h-2 w-2 rounded-full shrink-0 ${opt.dot}`} />
+                {opt.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Separator orientation="vertical" className="h-4 bg-white/10" />
+
+        {/* Löschen */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3 w-3" />
+          Löschen
+        </Button>
+
+        {/* Schließen */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-1.5 text-white/30 hover:text-white hover:bg-white/10 ml-0.5"
+          onClick={onClear}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}

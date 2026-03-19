@@ -85,7 +85,13 @@
       "Bash(npx sharp-cli:*)",
       "Bash(npx sharp:*)",
       "mcp__shadcn__get_item_examples_from_registries",
-      "mcp__shadcn__view_items_in_registries"
+      "mcp__shadcn__view_items_in_registries",
+      "WebFetch(domain:docs.unipile.com)",
+      "WebFetch(domain:unipile.com)",
+      "WebFetch(domain:developer.unipile.com)",
+      "WebFetch(domain:www.unipile.com)",
+      "WebFetch(domain:shadcnstudio.com)",
+      "Bash(do echo:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

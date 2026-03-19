@@ -27,14 +27,14 @@ import { createClient } from "@/lib/supabase/client";
 
 /* ── Navigation data ── */
 const mainNav = [
-    { name: "Dashboard",  href: "/dashboard",                icon: LayoutDashboard },
-    { name: "Leads",      href: "/dashboard/leads",          icon: Users           },
-    { name: "Kampagnen",  href: "/dashboard/campaigns",      icon: Send            },
-    { name: "LinkedIn",   href: "/dashboard/linkedin",       icon: Linkedin        },
+    { name: "Dashboard",     href: "/dashboard",           icon: LayoutDashboard },
+    { name: "Leads",         href: "/dashboard/leads",     icon: Users           },
+    { name: "Kampagnen",     href: "/dashboard/campaigns", icon: Send            },
+    { name: "LinkedIn",      href: "/dashboard/linkedin",  icon: Linkedin        },
 ];
 
 const systemNav = [
-    { name: "Einstellungen", href: "/dashboard/settings", icon: Settings },
+    { name: "Einstellungen", href: "/dashboard/settings",  icon: Settings        },
 ];
 
 /* ── Helpers ── */
@@ -50,6 +50,11 @@ function getInitials(name: string | null | undefined, email: string): string {
 function getDisplayName(name: string | null | undefined, email: string): string {
     if (name && name.trim()) return name.trim().split(" ")[0];
     return email.split("@")[0];
+}
+
+function isActive(pathname: string, href: string): boolean {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
 }
 
 /* ── Props ── */
@@ -130,7 +135,7 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                                 <SidebarMenuItem key={href}>
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={pathname === href}
+                                        isActive={isActive(pathname, href)}
                                         tooltip={name}
                                         className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-white/15 data-[active=true]:text-white data-[active=true]:font-semibold"
                                     >
@@ -145,8 +150,7 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                {role === "admin" && (
-                <SidebarGroup>
+                <SidebarGroup className="mt-auto">
                     <SidebarGroupLabel className="text-sidebar-foreground/50 uppercase text-[10px] tracking-wider font-semibold">
                         System
                     </SidebarGroupLabel>
@@ -156,7 +160,7 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                                 <SidebarMenuItem key={href}>
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={pathname === href}
+                                        isActive={isActive(pathname, href)}
                                         tooltip={name}
                                         className="text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-white/15 data-[active=true]:text-white data-[active=true]:font-semibold"
                                     >
@@ -170,7 +174,6 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
-                )}
             </SidebarContent>
 
             {/* ── Footer / User ── */}
@@ -228,14 +231,6 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                                             Mein Profil
                                         </Link>
                                     </DropdownMenuItem>
-                                    {role === "admin" && (
-                                    <DropdownMenuItem asChild className="mx-1.5 gap-3 cursor-pointer">
-                                        <Link href="/dashboard/settings">
-                                            <Settings className="h-4 w-4 text-muted-foreground" />
-                                            Einstellungen
-                                        </Link>
-                                    </DropdownMenuItem>
-                                    )}
                                     <DropdownMenuItem className="mx-1.5 gap-3 cursor-pointer">
                                         <Bell className="h-4 w-4 text-muted-foreground" />
                                         Benachrichtigungen

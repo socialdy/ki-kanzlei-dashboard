@@ -94,6 +94,11 @@ export async function getLeads(
     query = query.eq("legal_form", filters.legal_form);
   }
 
+  /* ID-Filter (für CRM-Export) */
+  if (filters.ids && filters.ids.length > 0) {
+    query = query.in("id", filters.ids);
+  }
+
   /* Volltextsuche über mehrere Spalten */
   if (filters.search) {
     const term = `%${filters.search}%`;

@@ -1,0 +1,194 @@
+/* ── API Route: POST /api/linkedin/analyze ── */
+/* 1. Loads full LinkedIn profile via Unipile → fills all available fields directly
+   2. Calls Gemini only for relevance score + industry (if missing) */
+
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getUserSettings } from "@/lib/supabase/settings";
+import { createUnipileClient } from "@/lib/unipile/client";
+import { getLinkedInLead, updateLinkedInLead } from "@/lib/supabase/linkedin-leads";
+import type { LinkedInLeadUpdate } from "@/types/linkedin";
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Nicht authentifiziert" }, { status: 401 });
+    }
+
+    const settings = await getUserSettings(user.id);
+    if (!settings?.unipile_dsn || !settings?.unipile_api_key || !settings?.unipile_account_id) {
+      return NextResponse.json({ error: "Unipile nicht konfiguriert" }, { status: 400 });
+    }
+    if (!settings?.gemini_api_key) {
+      return NextResponse.json({ error: "Gemini API Key nicht konfiguriert" }, { status: 400 });
+    }
+
+    const { leadId } = await request.json();
+    if (!leadId) {
+      return NextResponse.json({ error: "Lead-ID fehlt" }, { status: 400 });
+    }
+
+    const lead = await getLinkedInLead(leadId);
+    if (!lead) {
+      return NextResponse.json({ error: "Lead nicht gefunden" }, { status: 404 });
+    }
+
+    // ── Step 1: Load full profile from Unipile ──
+    const client = createUnipileClient(settings.unipile_dsn, settings.unipile_api_key);
+    const identifier = lead.linkedin_id || lead.linkedin_url;
+    let profile;
+    try {
+      profile = await client.getProfile(settings.unipile_account_id, identifier);
+    } catch {
+      profile = null;
+    }
+
+    // ── Step 2: Extract all available fields directly from Unipile ──
+    const updates: LinkedInLeadUpdate = {
+      status: "analyzed",
+    };
+
+    if (profile) {
+      // Basic info
+      if (profile.first_name) updates.first_name = profile.first_name;
+      if (profile.last_name) updates.last_name = profile.last_name;
+      if (profile.headline) updates.headline = profile.headline;
+      if (profile.location) updates.location = profile.location;
+      if (profile.industry) updates.industry = profile.industry;
+      if (profile.profile_picture_url) updates.profile_picture_url = profile.profile_picture_url;
+
+      // Work experience (Unipile returns work_experience with linkedin_sections=*)
+      const experiences = profile.work_experience || profile.positions || [];
+      const currentJob = experiences.find((p) => p.is_current) || experiences[0];
+      if (currentJob) {
+        const companyName = currentJob.company || currentJob.company_name;
+        if (companyName) updates.company = companyName;
+        if (currentJob.title) updates.position = currentJob.title;
+      }
+    }
+
+    // ── Step 3: Build profile text for Gemini scoring ──
+    const experiences = profile?.work_experience || profile?.positions || [];
+    const educations = profile?.education || profile?.educations || [];
+
+    const profileParts = [
+      `Name: ${lead.full_name}`,
+      updates.headline || lead.headline ? `Headline: ${updates.headline || lead.headline}` : "",
+      profile?.summary ? `Bio: ${profile.summary}` : "",
+      updates.company || lead.company ? `Firma: ${updates.company || lead.company}` : "",
+      updates.position || lead.position ? `Position: ${updates.position || lead.position}` : "",
+      updates.location || lead.location ? `Standort: ${updates.location || lead.location}` : "",
+      updates.industry || lead.industry ? `Branche: ${updates.industry || lead.industry}` : "",
+      profile?.connections_count ? `Kontakte: ${profile.connections_count}` : "",
+      profile?.is_premium ? "Premium-Account: Ja" : "",
+      experiences.length
+        ? `Berufserfahrung:\n${experiences.map((p) => {
+            const company = p.company || p.company_name || "?";
+            const period = [p.start_date, p.end_date || (p.is_current ? "heute" : "")].filter(Boolean).join(" – ");
+            return `  - ${p.title || "?"} bei ${company}${period ? ` (${period})` : ""}`;
+          }).join("\n")}`
+        : "",
+      educations.length
+        ? `Ausbildung:\n${educations.map((e) => {
+            const school = e.school || e.school_name || "?";
+            return `  - ${e.degree || ""} ${e.field_of_study || ""} @ ${school}`.trim();
+          }).join("\n")}`
+        : "",
+      profile?.skills?.length
+        ? `Skills: ${profile.skills.join(", ")}`
+        : "",
+    ].filter(Boolean).join("\n");
+
+    // ── Step 4: Gemini — Score + extract missing fields from headline ──
+    const needsCompany = !updates.company && !lead.company;
+    const needsPosition = !updates.position && !lead.position;
+    const needsIndustry = !updates.industry && !lead.industry;
+    const needsLocation = !updates.location && !lead.location;
+    const needsExtraction = needsCompany || needsPosition || needsIndustry || needsLocation;
+
+    // Build the extraction fields list dynamically
+    const extractFields: string[] = [
+      '- score: Relevanz-Score 0-100 als Business-Kontakt. Berücksichtige: Seniorität/Entscheidungsbefugnis (CEO/GF/Partner = hoch), Branchenrelevanz (Recht, Steuer, Beratung = hoch), Firmengröße, Erfahrung.',
+    ];
+    const jsonFields: string[] = ['"score": <number>'];
+
+    if (needsCompany) {
+      extractFields.push('- company: Aktueller Arbeitgeber / Firma (nur Firmenname)');
+      jsonFields.push('"company": "<string oder null>"');
+    }
+    if (needsPosition) {
+      extractFields.push('- position: Aktuelle Position / Jobtitel');
+      jsonFields.push('"position": "<string oder null>"');
+    }
+    if (needsIndustry) {
+      extractFields.push('- industry: Branche (z.B. "Recht", "IT", "Steuerberatung", "Immobilien", "Gesundheit", "Finanzen")');
+      jsonFields.push('"industry": "<string oder null>"');
+    }
+    if (needsLocation) {
+      extractFields.push('- location: Standort (Stadt, Land)');
+      jsonFields.push('"location": "<string oder null>"');
+    }
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.gemini_api_key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Analysiere dieses LinkedIn-Profil und extrahiere die folgenden Daten.${needsExtraction ? " Extrahiere fehlende Felder aus der Headline oder dem Kontext." : ""}
+
+Profil:
+${profileParts}
+
+Aufgabe:
+${extractFields.join("\n")}
+
+Antwort NUR als valides JSON (kein Markdown, keine Codeblöcke):
+{${jsonFields.join(", ")}}`,
+            }],
+          }],
+        }),
+      },
+    );
+
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.text();
+      console.error("[Gemini API Error]", geminiRes.status, errBody);
+      if (geminiRes.status === 429) {
+        return NextResponse.json({ error: "Gemini API Limit erreicht — bitte später erneut versuchen" }, { status: 429 });
+      }
+      // Still save Unipile data even if Gemini fails
+      const updated = await updateLinkedInLead(lead.id, updates);
+      return NextResponse.json({ data: updated, warning: "Profildaten gespeichert, aber Score konnte nicht berechnet werden" });
+    }
+
+    const geminiData = await geminiRes.json();
+    const responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (responseText) {
+      try {
+        const cleaned = responseText.replace(/```json\s*/g, "").replace(/```\s*/g, "");
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        const analysis = JSON.parse(jsonMatch?.[0] || "{}");
+        updates.ai_score = Math.min(100, Math.max(0, analysis.score || 0));
+        if (needsCompany && analysis.company) updates.company = analysis.company;
+        if (needsPosition && analysis.position) updates.position = analysis.position;
+        if (needsIndustry && analysis.industry) updates.industry = analysis.industry;
+        if (needsLocation && analysis.location) updates.location = analysis.location;
+      } catch (parseErr) {
+        console.error("[Gemini Parse Error]", parseErr, "Response:", responseText);
+      }
+    }
+
+    // ── Step 5: Save everything ──
+    const updated = await updateLinkedInLead(lead.id, updates);
+    return NextResponse.json({ data: updated });
+  } catch (error) {
+    console.error("[API /api/linkedin/analyze]", error);
+    return NextResponse.json({ error: "Interner Serverfehler" }, { status: 500 });
+  }
+}
