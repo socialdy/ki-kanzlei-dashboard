@@ -1,10 +1,11 @@
 /* ── Lead Typen ── */
 
-export type LeadStatus = "new" | "enriched" | "contacted" | "converted" | "closed";
+export type LeadStatus = "new" | "contacted" | "interested" | "not_interested" | "converted";
 
 export interface LeadFilters {
   status?: LeadStatus;
   city?: string;
+  country?: string;
   category?: string;
   industry?: string;
   search_query?: string;
@@ -248,6 +249,8 @@ export interface SearchJob {
   country: string;
   status: SearchJobStatus;
   results_count: number;
+  total_count: number | null;
+  estimated_end_at: string | null;
   error_message: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -255,7 +258,7 @@ export interface SearchJob {
   updated_at: string;
 }
 
-export type SearchJobInsert = Omit<SearchJob, "id" | "created_at" | "updated_at" | "started_at" | "completed_at" | "results_count" | "error_message" | "status"> & {
+export type SearchJobInsert = Omit<SearchJob, "id" | "created_at" | "updated_at" | "started_at" | "completed_at" | "results_count" | "total_count" | "estimated_end_at" | "error_message" | "status"> & {
   id?: string;
   status?: SearchJobStatus;
   radius_km?: number;
@@ -337,24 +340,35 @@ export const BUNDESLAENDER_DE = [
   { value: "Bremen", label: "Bremen" },
 ] as const;
 
-/* Kantone (Schweiz) */
+/* Kantone (Schweiz) — alle 26 */
 export const KANTONE_CH = [
   { value: "all", label: "Alle Kantone" },
   { value: "Zürich", label: "Zürich" },
   { value: "Bern", label: "Bern" },
   { value: "Luzern", label: "Luzern" },
+  { value: "Uri", label: "Uri" },
+  { value: "Schwyz", label: "Schwyz" },
+  { value: "Obwalden", label: "Obwalden" },
+  { value: "Nidwalden", label: "Nidwalden" },
+  { value: "Glarus", label: "Glarus" },
+  { value: "Zug", label: "Zug" },
+  { value: "Freiburg", label: "Freiburg" },
+  { value: "Solothurn", label: "Solothurn" },
   { value: "Basel-Stadt", label: "Basel-Stadt" },
   { value: "Basel-Landschaft", label: "Basel-Landschaft" },
+  { value: "Schaffhausen", label: "Schaffhausen" },
+  { value: "Appenzell Ausserrhoden", label: "Appenzell Ausserrhoden" },
+  { value: "Appenzell Innerrhoden", label: "Appenzell Innerrhoden" },
   { value: "St. Gallen", label: "St. Gallen" },
+  { value: "Graubünden", label: "Graubünden" },
   { value: "Aargau", label: "Aargau" },
   { value: "Thurgau", label: "Thurgau" },
-  { value: "Graubünden", label: "Graubünden" },
+  { value: "Tessin", label: "Tessin" },
   { value: "Waadt", label: "Waadt" },
   { value: "Wallis", label: "Wallis" },
+  { value: "Neuenburg", label: "Neuenburg" },
   { value: "Genf", label: "Genf" },
-  { value: "Solothurn", label: "Solothurn" },
-  { value: "Zug", label: "Zug" },
-  { value: "Schaffhausen", label: "Schaffhausen" },
+  { value: "Jura", label: "Jura" },
 ] as const;
 
 /* DACH Länder */

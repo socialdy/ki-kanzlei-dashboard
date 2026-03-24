@@ -1,6 +1,7 @@
 /* ── Supabase Data Access Layer: LinkedIn Leads ── */
 
 import { createClient } from "./server";
+import { getSupabaseAdmin } from "./admin";
 import type {
   LinkedInLead,
   LinkedInLeadInsert,
@@ -363,4 +364,73 @@ export async function getLinkedInLeadsForFollowUp(
   }
 
   return (data ?? []) as LinkedInLead[];
+}
+
+/* ── Admin variants (bypass RLS, for cron jobs) ── */
+
+export async function adminGetLinkedInLeadsForOutreach(
+  userId: string,
+  limit: number,
+): Promise<LinkedInLead[]> {
+  const admin = getSupabaseAdmin();
+
+  const { data, error } = await admin
+    .from("linkedin_leads")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "queued")
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Outreach-Queue: ${error.message}`);
+  }
+
+  return (data ?? []) as LinkedInLead[];
+}
+
+export async function adminGetLinkedInLeadsForFollowUp(
+  userId: string,
+  followUpDays: number,
+): Promise<LinkedInLead[]> {
+  const admin = getSupabaseAdmin();
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - followUpDays);
+
+  const { data, error } = await admin
+    .from("linkedin_leads")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "accepted")
+    .lt("connection_accepted_at", cutoff.toISOString())
+    .is("follow_up_sent_at", null)
+    .order("connection_accepted_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Follow-Up-Leads: ${error.message}`);
+  }
+
+  return (data ?? []) as LinkedInLead[];
+}
+
+export async function adminUpdateLinkedInLeadStatus(
+  id: string,
+  status: LinkedInLeadStatus,
+  extra: Partial<LinkedInLead> = {},
+): Promise<void> {
+  const admin = getSupabaseAdmin();
+
+  const { error } = await admin
+    .from("linkedin_leads")
+    .update({
+      status,
+      ...extra,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Fehler beim Status-Update: ${error.message}`);
+  }
 }

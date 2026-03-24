@@ -32,6 +32,7 @@ import {
   getRegionOptions,
   getRegionLabel,
 } from "@/types/leads";
+import { FilterCombobox } from "@/components/leads/FilterCombobox";
 
 const searchSchema = z
   .object({
@@ -54,6 +55,7 @@ const searchSchema = z
       });
     }
 
+    // Nur Fehler wenn weder Region noch Stadt angegeben
     if (hasQuery && !hasCity && !data.location) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -95,7 +97,11 @@ export function LeadSearchForm({ onSubmit, isSearching }: LeadSearchFormProps) {
     const valid = await form.trigger();
     if (!valid) return;
     const values = form.getValues();
-    await onSubmit({ ...values, company_type: values.company_type === "all" ? undefined : values.company_type }, "native");
+    await onSubmit({
+      ...values,
+      location: values.location || undefined,
+      company_type: values.company_type === "all" ? undefined : values.company_type,
+    }, "native");
     form.reset({ country: values.country });
   }
 
@@ -154,23 +160,16 @@ export function LeadSearchForm({ onSubmit, isSearching }: LeadSearchFormProps) {
                 render={({ field }) => (
                   <FormItem className="min-w-0">
                     <FormLabel>{regionLabel}</FormLabel>
-                    <Select
-                      onValueChange={(val) => { field.onChange(val === "all" ? "" : val); form.clearErrors("location"); }}
+                    <FilterCombobox
                       value={field.value || "all"}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={`Alle ${regionLabel === "Kanton" ? "Kantone" : "Bundesländer"}`} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {regionOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(val) => { field.onChange(val === "all" ? "" : val); form.clearErrors("location"); }}
+                      options={regionOptions.filter((o) => o.value !== "all").map((o) => ({ value: o.value, label: o.label }))}
+                      placeholder={`Alle ${regionLabel === "Kanton" ? "Kantone" : "Bundesländer"}`}
+                      searchPlaceholder={`${regionLabel} suchen…`}
+                      emptyText={`Kein ${regionLabel} gefunden`}
+                      allLabel={`Alle ${regionLabel === "Kanton" ? "Kantone" : "Bundesländer"}`}
+                      className="w-full"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}

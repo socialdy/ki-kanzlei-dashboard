@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { LeadStatus, LeadFilters } from "@/types/leads";
 
-const VALID_STATUSES: LeadStatus[] = ["new", "enriched", "contacted", "converted", "closed"];
+const VALID_STATUSES: LeadStatus[] = ["new", "contacted", "interested", "not_interested", "converted"];
 
 /**
  * Wendet Domain-Filter auf eine Supabase-Query an.

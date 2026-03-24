@@ -91,7 +91,11 @@
       "WebFetch(domain:developer.unipile.com)",
       "WebFetch(domain:www.unipile.com)",
       "WebFetch(domain:shadcnstudio.com)",
-      "Bash(do echo:*)"
+      "Bash(do echo:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:docs.dataforseo.com)",
+      "WebFetch(domain:www.codeconcisely.com)",
+      "Bash(npm ls:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

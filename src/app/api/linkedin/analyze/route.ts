@@ -101,36 +101,7 @@ export async function POST(request: NextRequest) {
         : "",
     ].filter(Boolean).join("\n");
 
-    // ── Step 4: Gemini — Score + extract missing fields from headline ──
-    const needsCompany = !updates.company && !lead.company;
-    const needsPosition = !updates.position && !lead.position;
-    const needsIndustry = !updates.industry && !lead.industry;
-    const needsLocation = !updates.location && !lead.location;
-    const needsExtraction = needsCompany || needsPosition || needsIndustry || needsLocation;
-
-    // Build the extraction fields list dynamically
-    const extractFields: string[] = [
-      '- score: Relevanz-Score 0-100 als Business-Kontakt. Berücksichtige: Seniorität/Entscheidungsbefugnis (CEO/GF/Partner = hoch), Branchenrelevanz (Recht, Steuer, Beratung = hoch), Firmengröße, Erfahrung.',
-    ];
-    const jsonFields: string[] = ['"score": <number>'];
-
-    if (needsCompany) {
-      extractFields.push('- company: Aktueller Arbeitgeber / Firma (nur Firmenname)');
-      jsonFields.push('"company": "<string oder null>"');
-    }
-    if (needsPosition) {
-      extractFields.push('- position: Aktuelle Position / Jobtitel');
-      jsonFields.push('"position": "<string oder null>"');
-    }
-    if (needsIndustry) {
-      extractFields.push('- industry: Branche (z.B. "Recht", "IT", "Steuerberatung", "Immobilien", "Gesundheit", "Finanzen")');
-      jsonFields.push('"industry": "<string oder null>"');
-    }
-    if (needsLocation) {
-      extractFields.push('- location: Standort (Stadt, Land)');
-      jsonFields.push('"location": "<string oder null>"');
-    }
-
+    // ── Step 4: Gemini — Score + ai_summary + always extract/confirm all fields ──
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.gemini_api_key}`,
       {
@@ -139,16 +110,21 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Analysiere dieses LinkedIn-Profil und extrahiere die folgenden Daten.${needsExtraction ? " Extrahiere fehlende Felder aus der Headline oder dem Kontext." : ""}
+              text: `Analysiere dieses LinkedIn-Profil vollständig. Extrahiere ALLE Felder aus dem Profil, der Headline und dem Kontext.
 
 Profil:
 ${profileParts}
 
 Aufgabe:
-${extractFields.join("\n")}
+- score: Relevanz-Score 0-100 als Business-Kontakt. Berücksichtige: Seniorität/Entscheidungsbefugnis (CEO/GF/Partner = hoch), Branchenrelevanz (Recht, Steuer, Beratung = hoch), Firmengröße, Erfahrung.
+- ai_summary: 2-3 Sätze auf Deutsch. Beschreibe wer die Person ist, ihre aktuelle Rolle und warum sie als Business-Kontakt relevant oder weniger relevant ist.
+- company: Aktueller Arbeitgeber / Firma (nur Firmenname)
+- position: Aktuelle Position / Jobtitel
+- industry: Branche (z.B. "Recht", "IT", "Steuerberatung", "Immobilien", "Gesundheit", "Finanzen")
+- location: Standort (Stadt, Land)
 
 Antwort NUR als valides JSON (kein Markdown, keine Codeblöcke):
-{${jsonFields.join(", ")}}`,
+{"score": <number>, "ai_summary": "<string>", "company": "<string oder null>", "position": "<string oder null>", "industry": "<string oder null>", "location": "<string oder null>"}`,
             }],
           }],
         }),
@@ -175,10 +151,11 @@ Antwort NUR als valides JSON (kein Markdown, keine Codeblöcke):
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         const analysis = JSON.parse(jsonMatch?.[0] || "{}");
         updates.ai_score = Math.min(100, Math.max(0, analysis.score || 0));
-        if (needsCompany && analysis.company) updates.company = analysis.company;
-        if (needsPosition && analysis.position) updates.position = analysis.position;
-        if (needsIndustry && analysis.industry) updates.industry = analysis.industry;
-        if (needsLocation && analysis.location) updates.location = analysis.location;
+        if (analysis.ai_summary) updates.ai_summary = analysis.ai_summary;
+        if (analysis.company) updates.company = analysis.company;
+        if (analysis.position) updates.position = analysis.position;
+        if (analysis.industry) updates.industry = analysis.industry;
+        if (analysis.location) updates.location = analysis.location;
       } catch (parseErr) {
         console.error("[Gemini Parse Error]", parseErr, "Response:", responseText);
       }

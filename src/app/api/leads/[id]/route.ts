@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLeadById, updateLead, deleteLead } from "@/lib/supabase/leads";
 import type { LeadUpdate } from "@/types/leads";
 
-const VALID_STATUSES = ["new", "enriched", "contacted", "converted", "closed"];
+const VALID_STATUSES = ["new", "contacted", "interested", "not_interested", "converted"];
 
 async function authenticate() {
   const supabase = await createClient();

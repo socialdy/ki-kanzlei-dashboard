@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { query, location, industry, cursor, api } = await request.json();
+    const { query, location, cursor, api } = await request.json();
     if (!query?.trim()) {
       return NextResponse.json({ error: "Suchbegriff fehlt" }, { status: 400 });
     }
@@ -29,33 +29,23 @@ export async function POST(request: NextRequest) {
     const client = createUnipileClient(settings.unipile_dsn, settings.unipile_api_key);
     const accountId = settings.unipile_account_id!;
 
-    // Resolve location & industry text → numeric IDs in parallel
-    const [locationIds, industryIds] = await Promise.all([
-      (async () => {
-        if (!location?.trim()) return undefined;
-        try {
-          const items = await client.searchParameters(
-            accountId, "LOCATION", location.trim(), 5,
-          );
-          return items.length > 0 ? items.map((i) => Number(i.id)) : undefined;
-        } catch { return undefined; }
-      })(),
-      (async () => {
-        if (!industry?.trim()) return undefined;
-        try {
-          const items = await client.searchParameters(
-            accountId, "INDUSTRY", industry.trim(), 5,
-          );
-          return items.length > 0 ? items.map((i) => Number(i.id)) : undefined;
-        } catch { return undefined; }
-      })(),
-    ]);
+    // Resolve location text → numeric IDs
+    let locationIds: string[] | undefined;
+    if (location?.trim()) {
+      try {
+        const items = await client.searchParameters(
+          accountId, "LOCATION", location.trim(), 5,
+        );
+        locationIds = items.length > 0 ? items.map((i) => String(i.id)) : undefined;
+      } catch { /* ignore */ }
+    }
+
+    console.log("[API /api/linkedin/search] Resolved locationIds:", locationIds);
 
     let results;
     try {
       results = await client.searchLinkedIn(accountId, query.trim(), {
         locationIds,
-        industryIds,
         cursor: cursor || undefined,
         api: api || "classic",
       });

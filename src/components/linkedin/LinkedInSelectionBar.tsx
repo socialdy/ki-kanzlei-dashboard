@@ -14,16 +14,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { LinkedInLeadStatus } from "@/types/linkedin";
 
-import { LINKEDIN_STATUS_CONFIG } from "@/types/linkedin";
+import { LINKEDIN_STATUS_OPTIONS } from "@/types/linkedin";
 
-const STATUS_OPTIONS: { value: LinkedInLeadStatus; label: string; dot: string }[] = [
-  { value: "new",      label: "Neu",           dot: LINKEDIN_STATUS_CONFIG.new.dot },
-  { value: "analyzed", label: "Analysiert",    dot: LINKEDIN_STATUS_CONFIG.analyzed.dot },
-  { value: "queued",   label: "Warteschlange", dot: LINKEDIN_STATUS_CONFIG.queued.dot },
-  { value: "invited",  label: "Eingeladen",    dot: LINKEDIN_STATUS_CONFIG.invited.dot },
-  { value: "accepted", label: "Akzeptiert",    dot: LINKEDIN_STATUS_CONFIG.accepted.dot },
-  { value: "declined", label: "Abgelehnt",     dot: LINKEDIN_STATUS_CONFIG.declined.dot },
-];
+const STATUS_OPTIONS = LINKEDIN_STATUS_OPTIONS;
 
 interface LinkedInSelectionBarProps {
   selectedCount: number;

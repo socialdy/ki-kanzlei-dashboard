@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
   flexRender,
@@ -11,8 +11,8 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import {
-  MoreHorizontal, Trash2, Sparkles, ListPlus,
-  UserPlus, Eye, Loader2, Linkedin,
+  MoreHorizontal, Trash2, Sparkles,
+  Eye, Loader2, Linkedin, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +26,20 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { DataTableColumnHeader } from "@/components/leads/DataTableColumnHeader";
 import { LinkedInStatusBadge } from "./LinkedInStatusBadge";
 import { LinkedInLeadSheet } from "./LinkedInLeadSheet";
 import { LinkedInSelectionBar } from "./LinkedInSelectionBar";
 import type { LinkedInLead, LinkedInLeadStatus } from "@/types/linkedin";
+import { LINKEDIN_STATUS_CONFIG, LINKEDIN_STATUS_OPTIONS } from "@/types/linkedin";
 
 /* ── Props ── */
 
@@ -258,18 +266,25 @@ function createLinkedInColumns(
                   <Sparkles className="h-4 w-4 mr-2" />
                   KI-Analyse
                 </DropdownMenuItem>
-                {(lead.status === "new" || lead.status === "analyzed") && (
-                  <DropdownMenuItem onClick={() => onStatusChange([lead.id], "queued")}>
-                    <ListPlus className="h-4 w-4 mr-2" />
-                    Warteschlange
-                  </DropdownMenuItem>
-                )}
-                {lead.status === "error" && (
-                  <DropdownMenuItem onClick={() => onStatusChange([lead.id], "queued")}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Erneut versuchen
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="text-xs gap-2 cursor-pointer">
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${LINKEDIN_STATUS_CONFIG[lead.status].dot}`} />
+                    Status ändern
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44">
+                    {LINKEDIN_STATUS_OPTIONS.map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        className="text-xs gap-2 cursor-pointer"
+                        disabled={opt.value === lead.status}
+                        onClick={() => onStatusChange([lead.id], opt.value)}
+                      >
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${opt.dot}`} />
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
@@ -300,6 +315,8 @@ export function LinkedInLeadsTable({
   const [sheetLead, setSheetLead] = useState<LinkedInLead | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isGlobalSelected, setIsGlobalSelected] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   /* ── Handlers ── */
 
@@ -332,9 +349,14 @@ export function LinkedInLeadsTable({
     onRefresh();
   }
 
-  async function handleDelete(ids: string[]) {
+  function handleDelete(ids: string[]) {
+    setDeleteIds(ids);
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
     try {
-      const effectiveIds = isGlobalSelected ? await fetchAllLeadIds() : ids;
+      const effectiveIds = isGlobalSelected ? await fetchAllLeadIds() : deleteIds;
       const res = await fetch("/api/linkedin/leads/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -342,12 +364,15 @@ export function LinkedInLeadsTable({
       });
       if (!res.ok) throw new Error();
       toast.success(`${effectiveIds.length} Lead(s) gelöscht`);
+      setDeleteIds([]);
+      table.resetRowSelection();
+      setIsGlobalSelected(false);
+      onRefresh();
     } catch {
       toast.error("Fehler beim Löschen");
+    } finally {
+      setDeleting(false);
     }
-    table.resetRowSelection();
-    setIsGlobalSelected(false);
-    onRefresh();
   }
 
   async function handleAnalyze(id: string) {
@@ -433,6 +458,22 @@ export function LinkedInLeadsTable({
     manualPagination: true,
     getRowId: (row) => row.id,
   });
+
+  /* ── ESC to clear selection ── */
+  const clearSelection = useCallback(() => {
+    table.resetRowSelection();
+    setIsGlobalSelected(false);
+  }, [table]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && Object.keys(table.getState().rowSelection).length > 0) {
+        clearSelection();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [table, clearSelection]);
 
   /* ── Skeleton loading ── */
 
@@ -580,6 +621,34 @@ export function LinkedInLeadsTable({
           onRefresh();
         }}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteIds.length > 0} onOpenChange={(open) => { if (!open) setDeleteIds([]); }}>
+        <AlertDialogContent className="sm:max-w-[420px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {deleteIds.length === 1 ? "Lead löschen" : `${isGlobalSelected ? totalCount : deleteIds.length} Leads löschen`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteIds.length === 1
+                ? "Möchtest du diesen Lead wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+                : `Möchtest du ${isGlobalSelected ? totalCount : deleteIds.length} Leads wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleting}
+            >
+              {deleting && <Spinner className="h-4 w-4 mr-2" />}
+              {deleteIds.length === 1 ? "Löschen" : `${isGlobalSelected ? totalCount : deleteIds.length} löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

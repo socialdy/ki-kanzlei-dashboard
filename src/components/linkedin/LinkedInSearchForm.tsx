@@ -36,7 +36,6 @@ const searchSchema = z.object({
   country: z.string().min(2),
   location: z.string().optional(),
   city: z.string().optional(),
-  industry: z.string().optional(),
 });
 
 type SearchFormValues = z.infer<typeof searchSchema>;
@@ -53,7 +52,7 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
 
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchSchema),
-    defaultValues: { query: "", country: "AT", location: "", city: "", industry: "" },
+    defaultValues: { query: "", country: "AT", location: "", city: "" },
   });
 
   const selectedCountry = form.watch("country");
@@ -90,10 +89,14 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
   const importBatch = useCallback(async (items: UnipileSearchResult[], query: string) => {
     if (items.length === 0) return 0;
 
-    // Filter out unknown/invalid profiles
+    // Filter out unknown/invalid profiles (including German "LinkedIn Mitglied")
+    const INVALID_NAMES = new Set([
+      "unknown", "linkedin member", "linkedin user", "linkedin mitglied",
+      "linkedin-mitglied", "linkedin nutzer",
+    ]);
     const validItems = items.filter((r) => {
       const name = (r.name || "").toLowerCase().trim();
-      return name && name !== "unknown" && name !== "linkedin member" && name !== "linkedin user" && name.length > 1;
+      return name && !INVALID_NAMES.has(name) && name.length > 1;
     });
     if (validItems.length === 0) return 0;
 
@@ -126,6 +129,91 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
     }
   }, []);
 
+  /**
+   * Search a single location and paginate through all results.
+   * Returns { imported, duplicates, results }.
+   */
+  async function searchLocation(
+    queryStr: string,
+    locationStr: string,
+    apiType: string,
+    existingUrls: Set<string>,
+    toastId: string | number,
+    totals: { imported: number; duplicates: number; results: number },
+    regionLabel?: string,
+  ) {
+    let cursor: string | null = null;
+    let pageNum = 0;
+    let locationTotal = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (abortRef.current) break;
+
+      const pageRes: Response = await fetch("/api/linkedin/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: queryStr,
+          location: locationStr || undefined,
+          cursor,
+          api: apiType,
+        }),
+      });
+
+      const json = await pageRes.json();
+
+      if (!pageRes.ok) {
+        if (pageNum === 0 && !regionLabel) {
+          toast.error(json.error || "Suche fehlgeschlagen", { id: toastId, duration: 5000 });
+        }
+        break;
+      }
+
+      const items: UnipileSearchResult[] = json.data?.items ?? [];
+      if (items.length === 0) break;
+
+      if (pageNum === 0 && json.data?.paging?.total_count) {
+        locationTotal = json.data.paging.total_count;
+      }
+
+      totals.results += items.length;
+
+      // Split into new vs duplicate
+      const newItems: UnipileSearchResult[] = [];
+      for (const item of items) {
+        const url = item.profile_url || item.public_profile_url
+          || `https://www.linkedin.com/in/${item.public_identifier || item.id}`;
+        if (existingUrls.has(url)) {
+          totals.duplicates++;
+        } else {
+          newItems.push(item);
+          existingUrls.add(url);
+        }
+      }
+
+      // Import new items
+      if (newItems.length > 0) {
+        const count = await importBatch(newItems, queryStr);
+        totals.imported += count;
+      }
+
+      // Update toast
+      const regionInfo = regionLabel ? ` · ${regionLabel}` : "";
+      const progress = locationTotal > 0
+        ? ` (${Math.round(((totals.results) / locationTotal) * 100)}%)`
+        : "";
+      toast.loading(`${totals.results.toLocaleString("de")} Ergebnisse geladen${progress}`, {
+        id: toastId,
+        description: `${totals.imported} neu importiert · ${totals.duplicates} Duplikate${regionInfo}`,
+      });
+
+      cursor = json.data?.cursor ?? null;
+      pageNum++;
+      if (!cursor) break;
+    }
+  }
+
   async function handleSearch() {
     const valid = await form.trigger();
     if (!valid) return;
@@ -136,31 +224,34 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
     abortRef.current = false;
     setSearching(true);
 
-    // Build location string — use most specific term for Unipile parameter resolution
-    // Priority: city > region > country (Unipile resolves text → LinkedIn location IDs)
-    let locationStr = "";
-    if (values.city?.trim()) {
-      locationStr = values.city.trim();
-    } else if (values.location && values.location !== "all") {
-      locationStr = values.location;
+    const apiType = accountType === "sales_navigator" ? "sales_navigator" : "classic";
+
+    // Determine which locations to search
+    const hasCity = !!values.city?.trim();
+    const hasRegion = !!values.location && values.location !== "all";
+    const searchAllRegions = !hasCity && !hasRegion;
+
+    // Build list of locations to search
+    let locations: { str: string; label?: string }[];
+
+    if (hasCity) {
+      locations = [{ str: values.city!.trim() }];
+    } else if (hasRegion) {
+      locations = [{ str: values.location! }];
     } else {
-      const country = DACH_COUNTRIES.find((c) => c.value === values.country);
-      if (country) locationStr = country.label;
+      // No specific region → search each region individually to bypass LinkedIn's per-search limit
+      const regions = getRegionOptions(values.country).filter((r) => r.value !== "all");
+      locations = regions.map((r) => ({ str: r.value, label: r.label }));
     }
 
-    const apiType = accountType === "sales_navigator" ? "sales_navigator" : "classic";
-    let cursor: string | null = null;
-    let pageNum = 0;
-    let totalImported = 0;
-    let totalDuplicates = 0;
-    let totalResults = 0;
-    let totalCount = 0;
+    const toastId = toast.loading(
+      searchAllRegions
+        ? `LinkedIn-Suche gestartet (${locations.length} Regionen)…`
+        : "LinkedIn-Suche gestartet…",
+      { description: "Ergebnisse werden geladen und importiert", duration: Infinity },
+    );
 
-    // Show persistent toast for search progress
-    const toastId = toast.loading("LinkedIn-Suche gestartet…", {
-      description: "Ergebnisse werden geladen und importiert",
-      duration: Infinity,
-    });
+    const totals = { imported: 0, duplicates: 0, results: 0 };
 
     try {
       // Load ALL existing URLs to detect duplicates
@@ -170,91 +261,45 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
         (existingJson.data?.data ?? []).map((l: { linkedin_url: string }) => l.linkedin_url),
       );
 
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
+      for (let i = 0; i < locations.length; i++) {
         if (abortRef.current) break;
 
-        const pageRes: Response = await fetch("/api/linkedin/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: queryStr,
-            location: locationStr || undefined,
-            industry: values.industry?.trim() || undefined,
-            cursor,
-            api: apiType,
-          }),
-        });
+        const loc = locations[i];
 
-        const json = await pageRes.json();
-
-        if (!pageRes.ok) {
-          if (pageNum === 0) {
-            toast.error(json.error || "Suche fehlgeschlagen", { id: toastId, duration: 5000 });
-          }
-          break;
+        if (searchAllRegions) {
+          toast.loading(
+            `Region ${i + 1}/${locations.length}: ${loc.label ?? loc.str}`,
+            {
+              id: toastId,
+              description: `${totals.imported} neu importiert · ${totals.duplicates} Duplikate`,
+            },
+          );
         }
 
-        const items: UnipileSearchResult[] = json.data?.items ?? [];
-        if (items.length === 0) break;
-
-        if (pageNum === 0 && json.data?.paging?.total_count) {
-          totalCount = json.data.paging.total_count;
-        }
-
-        totalResults += items.length;
-
-        // Split into new vs duplicate
-        const newItems: UnipileSearchResult[] = [];
-        for (const item of items) {
-          const url = item.profile_url || item.public_profile_url
-            || `https://www.linkedin.com/in/${item.public_identifier || item.id}`;
-          if (existingUrls.has(url)) {
-            totalDuplicates++;
-          } else {
-            newItems.push(item);
-            existingUrls.add(url);
-          }
-        }
-
-        // Import new items
-        if (newItems.length > 0) {
-          const count = await importBatch(newItems, queryStr);
-          totalImported += count;
-        }
-
-        // Update toast
-        const progress = totalCount > 0
-          ? ` (${Math.round((totalResults / totalCount) * 100)}%)`
-          : "";
-        toast.loading(`${totalResults.toLocaleString("de")} Ergebnisse geladen${progress}`, {
-          id: toastId,
-          description: `${totalImported} neu importiert · ${totalDuplicates} Duplikate übersprungen`,
-        });
-
-        cursor = json.data?.cursor ?? null;
-        pageNum++;
-        if (!cursor) break;
+        await searchLocation(
+          queryStr, loc.str, apiType,
+          existingUrls, toastId, totals, loc.label,
+        );
       }
 
-      // Final toast (explicit duration to override Infinity from loading toast)
-      if (totalResults === 0) {
+      // Final toast
+      if (totals.results === 0) {
         toast.info("Keine Ergebnisse gefunden", {
           id: toastId,
           description: "Versuche andere Suchbegriffe oder einen anderen Standort.",
           duration: 5000,
         });
-      } else if (totalImported > 0) {
-        toast.success(`${totalImported} neue Leads importiert`, {
+      } else if (totals.imported > 0) {
+        toast.success(`${totals.imported} neue Leads importiert`, {
           id: toastId,
-          description: `${totalResults.toLocaleString("de")} Ergebnisse durchsucht · ${totalDuplicates} Duplikate übersprungen`,
+          description: `${totals.results.toLocaleString("de")} Ergebnisse durchsucht · ${totals.duplicates} Duplikate übersprungen`,
           duration: 5000,
         });
         onImported();
       } else {
         toast.info("Alle Ergebnisse bereits vorhanden", {
           id: toastId,
-          description: `${totalResults.toLocaleString("de")} Ergebnisse, ${totalDuplicates} Duplikate`,
+          description: `${totals.results.toLocaleString("de")} Ergebnisse, ${totals.duplicates} Duplikate`,
           duration: 5000,
         });
         onImported();
@@ -354,25 +399,8 @@ export function LinkedInSearchForm({ onImported }: LinkedInSearchFormProps) {
               />
             </div>
 
-            {/* Row 3: Branche + Button */}
+            {/* Row 3: Button */}
             <div className="flex items-end gap-3">
-              <FormField
-                control={form.control}
-                name="industry"
-                render={({ field }) => (
-                  <FormItem className="flex-1 min-w-0">
-                    <FormLabel>Branche (optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="z.B. Automotive, Legal, Healthcare"
-                        {...field}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearch(); } }}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
               <Button
                 type="button"
                 disabled={!ready || searching}

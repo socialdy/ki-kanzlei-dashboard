@@ -56,6 +56,7 @@ export class UnipileClient {
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
+      console.error(`[Unipile] ${res.status} ${path} body:`, body);
       let message = `Unipile API error: ${res.status}`;
 
       if (res.status === 401) message = "Ungültiger Unipile API Key";
@@ -66,7 +67,7 @@ export class UnipileClient {
           const parsed = JSON.parse(body);
           message = parsed.message || parsed.error || message;
         } catch {
-          // keep default message
+          message = `${message}: ${body.substring(0, 200)}`;
         }
       }
 
@@ -112,8 +113,7 @@ export class UnipileClient {
     query: string,
     options?: {
       category?: string;
-      locationIds?: number[];
-      industryIds?: number[];
+      locationIds?: string[];
       cursor?: string;
       limit?: number;
       api?: string;
@@ -132,7 +132,6 @@ export class UnipileClient {
     if (options?.cursor) body.cursor = options.cursor;
     if (options?.limit) body.limit = options.limit;
     if (options?.locationIds?.length) body.location = options.locationIds;
-    if (options?.industryIds?.length) body.industry = options.industryIds;
 
     return this.request<UnipileSearchResponse>(
       `/api/v1/linkedin/search?${params.toString()}`,

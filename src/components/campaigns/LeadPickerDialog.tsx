@@ -68,8 +68,8 @@ const PAGE_SIZE = 20;
 const STATUS_OPTIONS = [
   { value: "all", label: "Alle Status" },
   { value: "new", label: "Neu" },
-  { value: "enriched", label: "Angereichert" },
   { value: "contacted", label: "Kontaktiert" },
+  { value: "interested", label: "Interessiert" },
 ];
 
 export function LeadPickerDialog({

@@ -34,25 +34,25 @@ export default async function DashboardOverview() {
     .select("*", { count: "exact", head: true })
     .eq("status", "new");
 
-  const { count: enrichedLeads } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "enriched");
-
   const { count: contactedLeads } = await supabase
     .from("leads")
     .select("*", { count: "exact", head: true })
     .eq("status", "contacted");
 
+  const { count: interestedLeads } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "interested");
+
+  const { count: notInterestedLeads } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "not_interested");
+
   const { count: convertedLeads } = await supabase
     .from("leads")
     .select("*", { count: "exact", head: true })
     .eq("status", "converted");
-
-  const { count: closedLeads } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "closed");
 
   /* ── LinkedIn Stats ── */
   const { count: linkedinTotal } = await supabase
@@ -120,11 +120,11 @@ export default async function DashboardOverview() {
 
   /* ── Lead Status data for donut ── */
   const leadStatusData = [
-    { status: "new",        count: newLeads ?? 0 },
-    { status: "enriched",   count: enrichedLeads ?? 0 },
-    { status: "contacted",  count: contactedLeads ?? 0 },
-    { status: "converted",  count: convertedLeads ?? 0 },
-    { status: "closed",     count: closedLeads ?? 0 },
+    { status: "new",              count: newLeads ?? 0 },
+    { status: "contacted",        count: contactedLeads ?? 0 },
+    { status: "interested",       count: interestedLeads ?? 0 },
+    { status: "not_interested",   count: notInterestedLeads ?? 0 },
+    { status: "converted",        count: convertedLeads ?? 0 },
   ].filter(d => d.count > 0);
 
   /* ── Campaign bar data ── */

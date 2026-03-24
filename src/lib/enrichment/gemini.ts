@@ -5,7 +5,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { INDUSTRY_OPTIONS } from "@/types/leads";
 
-const INDUSTRY_LIST = INDUSTRY_OPTIONS.map((o) => o.value).join(" | ");
+const INDUSTRY_LIST = INDUSTRY_OPTIONS.map((o) => o.label).join(" | ");
 
 export interface GeminiExtractionResult {
   company_name: string | null;
@@ -46,36 +46,69 @@ export async function extractWithGemini(
     return null;
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: "Du bist ein Daten-Extraktions-Spezialist fuer oesterreichische und deutsche Unternehmen. Antworte IMMER mit validem JSON ohne Markdown-Bloecke. Fuer ceo_gender NUR: herr, frau, divers, unbekannt. NIEMALS maennlich/weiblich! Bei Ehepaaren: nimm EINE Person. Fuer industry: waehle EXAKT einen Wert aus der vorgegebenen Liste.",
-      generationConfig: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
-    });
+  const MAX_RETRIES = 2;
 
-    const prompt = buildPrompt(input);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: "Du bist ein Daten-Extraktions-Spezialist fuer oesterreichische und deutsche Unternehmen. Antworte IMMER mit validem JSON ohne Markdown-Bloecke. Fuer ceo_gender NUR: herr, frau, divers, unbekannt. NIEMALS maennlich/weiblich! Bei Ehepaaren: nimm EINE Person. Fuer industry: waehle EXAKT einen Wert aus der vorgegebenen Liste.",
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
+      });
 
-    const parsed = JSON.parse(text) as GeminiExtractionResult;
+      const prompt = buildPrompt(input);
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
 
-    // Gender normalisieren (wie n8n)
-    parsed.ceo_gender = normalizeGender(parsed.ceo_gender);
+      const parsed = JSON.parse(text) as GeminiExtractionResult;
 
-    // Confidence Score validieren
-    if (typeof parsed.confidence_score !== "number" || parsed.confidence_score < 0 || parsed.confidence_score > 1) {
-      parsed.confidence_score = 0.5;
+      // Gender normalisieren (wie n8n)
+      parsed.ceo_gender = normalizeGender(parsed.ceo_gender);
+
+      // Branche normalisieren: ASCII-Keys → Label mit Umlauten
+      parsed.industry = normalizeIndustry(parsed.industry);
+
+      // Confidence Score validieren
+      if (typeof parsed.confidence_score !== "number" || parsed.confidence_score < 0 || parsed.confidence_score > 1) {
+        parsed.confidence_score = 0.5;
+      }
+
+      return parsed;
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[Gemini] Retry ${attempt + 1}/${MAX_RETRIES} für "${input.companyName}"`);
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        continue;
+      }
+      console.error("[Gemini] Extraktion fehlgeschlagen:", err);
+      return null;
     }
-
-    return parsed;
-  } catch (err) {
-    console.error("[Gemini] Extraktion fehlgeschlagen:", err);
-    return null;
   }
+  return null;
+}
+
+// Map ASCII-Keys (alte Werte) auf Labels mit Umlauten
+const INDUSTRY_VALUE_TO_LABEL = new Map<string, string>();
+const INDUSTRY_LABELS_LOWER = new Map<string, string>();
+for (const opt of INDUSTRY_OPTIONS) {
+  INDUSTRY_VALUE_TO_LABEL.set(opt.value.toLowerCase(), opt.label);
+  INDUSTRY_LABELS_LOWER.set(opt.label.toLowerCase(), opt.label);
+}
+
+function normalizeIndustry(val: string | null | undefined): string | null {
+  if (!val) return null;
+  const trimmed = val.trim();
+  // Exakter Label-Match (Gemini gibt jetzt Labels zurück)
+  const byLabel = INDUSTRY_LABELS_LOWER.get(trimmed.toLowerCase());
+  if (byLabel) return byLabel;
+  // Fallback: alter ASCII-Key (z.B. "Bautraeger" → "Bauträger")
+  const byKey = INDUSTRY_VALUE_TO_LABEL.get(trimmed.toLowerCase());
+  if (byKey) return byKey;
+  return trimmed;
 }
 
 function normalizeGender(g: string | null | undefined): "herr" | "frau" | "divers" | "unbekannt" {

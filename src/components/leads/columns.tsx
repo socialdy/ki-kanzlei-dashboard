@@ -36,24 +36,24 @@ import { DataTableColumnHeader } from "./DataTableColumnHeader";
 import type { Lead, LeadStatus } from "@/types/leads";
 import { countryLabel } from "@/types/leads";
 
-/* ── Status config ── */
+/* ── Status config (matching LinkedIn badge pattern: bg/8 + text + border) ── */
 export const LEAD_STATUS_CONFIG: Record<
   LeadStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dot: string }
+  { label: string; className: string; dot: string }
 > = {
-  new:       { label: "Neu",          variant: "secondary",  dot: "bg-blue-500" },
-  enriched:  { label: "Angereichert", variant: "secondary",  dot: "bg-violet-500" },
-  contacted: { label: "Kontaktiert",  variant: "outline",    dot: "bg-amber-500" },
-  converted: { label: "Konvertiert",  variant: "default",    dot: "bg-emerald-500" },
-  closed:    { label: "Geschlossen",  variant: "outline",    dot: "bg-slate-400" },
+  new:              { label: "Neu",               className: "bg-primary/8 text-primary border border-primary/15",                dot: "bg-primary/50" },
+  contacted:        { label: "Kontaktiert",       className: "bg-amber-500/10 text-amber-700 border border-amber-500/15",        dot: "bg-amber-500" },
+  interested:       { label: "Interessiert",      className: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/15",  dot: "bg-emerald-500" },
+  not_interested:   { label: "Kein Interesse",    className: "bg-muted text-muted-foreground border border-border",              dot: "bg-muted-foreground/50" },
+  converted:        { label: "Konvertiert",       className: "bg-primary/12 text-primary border border-primary/20",              dot: "bg-primary" },
 };
 
 const STATUS_LIST: { value: LeadStatus; label: string; dot: string }[] = [
-  { value: "new",       label: "Neu",          dot: "bg-blue-500" },
-  { value: "enriched",  label: "Angereichert", dot: "bg-violet-500" },
-  { value: "contacted", label: "Kontaktiert",  dot: "bg-amber-500" },
-  { value: "converted", label: "Konvertiert",  dot: "bg-emerald-500" },
-  { value: "closed",    label: "Geschlossen",  dot: "bg-slate-400" },
+  { value: "new",            label: "Neu",            dot: "bg-primary/50" },
+  { value: "contacted",      label: "Kontaktiert",    dot: "bg-amber-500" },
+  { value: "interested",     label: "Interessiert",   dot: "bg-emerald-500" },
+  { value: "not_interested", label: "Kein Interesse", dot: "bg-muted-foreground/50" },
+  { value: "converted",      label: "Konvertiert",    dot: "bg-primary" },
 ];
 
 /* ── Social Icons sub-component ── */
@@ -299,7 +299,7 @@ export function createColumns(actions: ColumnActions): ColumnDef<Lead>[] {
       cell: ({ row }) => {
         const cfg = LEAD_STATUS_CONFIG[row.original.status];
         return (
-          <Badge variant={cfg.variant} className="gap-1.5 text-xs font-medium">
+          <Badge variant="secondary" className={cn("text-[11px] font-medium px-2 py-0.5 gap-1.5", cfg.className)}>
             <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", cfg.dot)} />
             {cfg.label}
           </Badge>

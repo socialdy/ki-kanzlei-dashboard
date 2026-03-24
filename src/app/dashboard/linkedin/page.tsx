@@ -48,7 +48,7 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "accepted",  label: "Akzeptiert" },
   { value: "messaged",  label: "Nachricht" },
   { value: "replied",   label: "Antwort" },
-  { value: "declined",  label: "Abgelehnt" },
+  { value: "declined",  label: "Kein Interesse" },
   { value: "error",     label: "Fehler" },
 ];
 

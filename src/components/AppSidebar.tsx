@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-    LayoutDashboard, Users, Send, Linkedin,
+    LayoutDashboard, Users, Send, Linkedin, Newspaper,
     Settings, ChevronsUpDown,
     LogOut, BadgeCheck, Bell, Loader2,
 } from "lucide-react";
@@ -31,6 +31,7 @@ const mainNav = [
     { name: "Leads",         href: "/dashboard/leads",     icon: Users           },
     { name: "Kampagnen",     href: "/dashboard/campaigns", icon: Send            },
     { name: "LinkedIn",      href: "/dashboard/linkedin",  icon: Linkedin        },
+    { name: "SEO",           href: "/dashboard/seo",       icon: Newspaper       },
 ];
 
 const systemNav = [

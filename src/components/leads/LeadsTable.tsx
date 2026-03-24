@@ -39,11 +39,11 @@ import { LEAD_STATUS_CONFIG } from "./columns";
 export { LEAD_STATUS_CONFIG } from "./columns";
 
 const STATUS_LIST: { value: LeadStatus; label: string; dot: string }[] = [
-  { value: "new",       label: "Neu",          dot: "bg-blue-500" },
-  { value: "enriched",  label: "Angereichert", dot: "bg-violet-500" },
-  { value: "contacted", label: "Kontaktiert",  dot: "bg-amber-500" },
-  { value: "converted", label: "Konvertiert",  dot: "bg-emerald-500" },
-  { value: "closed",    label: "Geschlossen",  dot: "bg-slate-400" },
+  { value: "new",            label: "Neu",            dot: "bg-primary/50" },
+  { value: "contacted",      label: "Kontaktiert",    dot: "bg-amber-500" },
+  { value: "interested",     label: "Interessiert",   dot: "bg-emerald-500" },
+  { value: "not_interested", label: "Kein Interesse", dot: "bg-muted-foreground/50" },
+  { value: "converted",      label: "Konvertiert",    dot: "bg-primary" },
 ];
 
 interface LeadsTableProps {

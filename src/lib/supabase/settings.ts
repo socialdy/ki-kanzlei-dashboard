@@ -119,3 +119,22 @@ export async function getUserSettingsByUserId(
 
   return data as UserSettings;
 }
+
+/* ── Alle User mit auto_outreach holen (für Cron Jobs) ── */
+export async function getAllAutoOutreachUsers(): Promise<UserSettings[]> {
+  const admin = getSupabaseAdmin();
+
+  const { data, error } = await admin
+    .from("user_settings")
+    .select("*")
+    .eq("linkedin_auto_outreach", true)
+    .not("unipile_api_key", "is", null)
+    .not("unipile_dsn", "is", null)
+    .not("unipile_account_id", "is", null);
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Auto-Outreach User: ${error.message}`);
+  }
+
+  return (data ?? []) as UserSettings[];
+}

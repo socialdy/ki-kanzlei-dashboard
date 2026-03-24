@@ -93,6 +93,9 @@ export async function getLeads(
   if (filters.legal_form) {
     query = query.eq("legal_form", filters.legal_form);
   }
+  if (filters.country) {
+    query = query.eq("country", filters.country);
+  }
 
   /* ID-Filter (für CRM-Export) */
   if (filters.ids && filters.ids.length > 0) {
@@ -288,6 +291,7 @@ function applyFilters(query: any, filters: LeadFilters) {
   if (filters.search_query) { query = query.eq("search_query", filters.search_query); hasFilter = true; }
   if (filters.search_location) { query = query.eq("search_location", filters.search_location); hasFilter = true; }
   if (filters.legal_form) { query = query.eq("legal_form", filters.legal_form); hasFilter = true; }
+  if (filters.country) { query = query.eq("country", filters.country); hasFilter = true; }
   if (filters.search) {
     const term = `%${filters.search}%`;
     query = query.or(`name.ilike.${term},company.ilike.${term},company_name.ilike.${term},email.ilike.${term},city.ilike.${term}`);
@@ -345,10 +349,10 @@ export async function getLeadStats(): Promise<LeadStats> {
 
   const statuses: LeadStatus[] = [
     "new",
-    "enriched",
     "contacted",
+    "interested",
+    "not_interested",
     "converted",
-    "closed",
   ];
 
   const stats = Object.fromEntries(
@@ -389,6 +393,50 @@ export async function getDistinctIndustries(): Promise<string[]> {
   return Array.from(unique).sort((a, b) => a.localeCompare(b, "de"));
 }
 
+/**
+ * Distinct cities aus der DB holen (nur nicht-leere Werte).
+ */
+export async function getDistinctCities(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select("city");
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Städte: ${error.message}`);
+  }
+
+  const unique = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.city) unique.add(row.city);
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, "de"));
+}
+
+/**
+ * Distinct countries aus der DB holen (nur nicht-leere Werte).
+ */
+export async function getDistinctCountries(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select("country");
+
+  if (error) {
+    throw new Error(`Fehler beim Laden der Länder: ${error.message}`);
+  }
+
+  const unique = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.country) unique.add(row.country);
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, "de"));
+}
+
 /* ─────────────────────── Search Jobs ─────────────────────── */
 
 /**
@@ -410,6 +458,22 @@ export async function createSearchJob(
   }
 
   return data as SearchJob;
+}
+
+/**
+ * Such-Job löschen.
+ */
+export async function deleteSearchJob(id: string): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("search_jobs")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Fehler beim Löschen des Such-Jobs: ${error.message}`);
+  }
 }
 
 /**

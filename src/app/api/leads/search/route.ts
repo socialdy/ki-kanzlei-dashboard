@@ -80,15 +80,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!location || typeof location !== "string" || location.trim().length === 0) {
+    const hasLocation = location && typeof location === "string" && location.trim().length > 0;
+    const hasCity = city && typeof city === "string" && city.trim().length > 0;
+
+    if (!hasLocation && !hasCity) {
       return NextResponse.json(
-        { error: "Standort (location) ist erforderlich" },
+        { error: "Standort (location) oder Stadt (city) ist erforderlich" },
         { status: 400 },
       );
     }
 
+    // Wenn keine Region gewählt aber Stadt angegeben → Stadt als Location verwenden
+    const effectiveLocation = hasLocation ? location!.trim() : city!.trim();
+
     // SearchJob in der Datenbank erstellen
-    const displayLocation = city ? `${city} (${location})` : location;
+    const displayLocation = hasCity
+      ? hasLocation ? `${city!.trim()} (${location!.trim()})` : city!.trim()
+      : effectiveLocation;
     const searchJob = await createSearchJob({
       user_id: user.id,
       query: query.trim(),
@@ -101,10 +109,10 @@ export async function POST(request: NextRequest) {
       jobId: searchJob.id,
       userId: user.id,
       query: query.trim(),
-      location: location.trim(),
+      location: effectiveLocation,
       country,
       companyType: company_type,
-      city: city?.trim() || undefined,
+      city: hasCity ? city!.trim() : undefined,
       requireCeo: require_ceo,
     }).catch((err) => {
       console.error(`[API] Pipeline-Fehler für Job ${searchJob.id}:`, err);

@@ -24,49 +24,60 @@ interface PipelineParams {
 
 /* ── Region → Städte Mappings (AT / DE / CH) ── */
 const REGION_CITIES: Record<string, string[]> = {
-  // ── Österreich ──
-  "Wien": ["Wien"],
-  "Niederösterreich": ["St. Pölten", "Wiener Neustadt", "Baden", "Krems an der Donau", "Amstetten", "Mödling", "Korneuburg", "Tulln", "Zwettl", "Mistelbach"],
-  "Oberösterreich": ["Linz", "Wels", "Steyr", "Leonding", "Traun", "Braunau am Inn", "Ried im Innkreis", "Vöcklabruck", "Gmunden", "Enns"],
-  "Steiermark": ["Graz", "Leoben", "Kapfenberg", "Bruck an der Mur", "Leibnitz", "Feldbach", "Weiz", "Hartberg", "Judenburg", "Voitsberg"],
-  "Salzburg": ["Salzburg", "Hallein", "Wals-Siezenheim", "Seekirchen", "Saalfelden", "Bischofshofen", "St. Johann im Pongau", "Zell am See"],
-  "Tirol": ["Innsbruck", "Kufstein", "Schwaz", "Hall in Tirol", "Wörgl", "Lienz", "Telfs", "Imst", "Landeck", "Reutte"],
-  "Kärnten": ["Klagenfurt", "Villach", "Wolfsberg", "Spittal an der Drau", "Feldkirchen", "St. Veit an der Glan", "Völkermarkt", "Hermagor"],
-  "Vorarlberg": ["Bregenz", "Dornbirn", "Feldkirch", "Bludenz", "Hohenems", "Lustenau", "Hard", "Rankweil", "Götzis"],
-  "Burgenland": ["Eisenstadt", "Oberwart", "Neusiedl am See", "Güssing", "Jennersdorf", "Mattersburg", "Oberpullendorf"],
-  // ── Deutschland ──
-  "Bayern": ["München", "Nürnberg", "Augsburg", "Regensburg", "Würzburg", "Ingolstadt", "Fürth", "Erlangen", "Bayreuth", "Landshut"],
-  "Nordrhein-Westfalen": ["Köln", "Düsseldorf", "Dortmund", "Essen", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster"],
-  "Baden-Württemberg": ["Stuttgart", "Mannheim", "Karlsruhe", "Freiburg im Breisgau", "Heidelberg", "Ulm", "Heilbronn", "Pforzheim", "Reutlingen", "Konstanz"],
-  "Berlin": ["Berlin"],
-  "Hamburg": ["Hamburg"],
-  "Hessen": ["Frankfurt am Main", "Wiesbaden", "Kassel", "Darmstadt", "Hanau", "Offenbach am Main", "Marburg", "Gießen", "Fulda", "Wetzlar"],
-  "Niedersachsen": ["Hannover", "Braunschweig", "Osnabrück", "Oldenburg", "Göttingen", "Wolfsburg", "Salzgitter", "Hildesheim", "Lüneburg", "Hameln"],
-  "Rheinland-Pfalz": ["Mainz", "Ludwigshafen", "Koblenz", "Trier", "Kaiserslautern", "Worms", "Neuwied", "Neustadt an der Weinstraße"],
-  "Sachsen": ["Leipzig", "Dresden", "Chemnitz", "Zwickau", "Erfurt", "Plauen", "Görlitz", "Freiberg", "Bautzen"],
-  "Thüringen": ["Erfurt", "Jena", "Gera", "Weimar", "Gotha", "Suhl", "Nordhausen", "Eisenach"],
-  "Brandenburg": ["Potsdam", "Cottbus", "Brandenburg an der Havel", "Frankfurt an der Oder", "Oranienburg", "Eberswalde"],
-  "Sachsen-Anhalt": ["Halle", "Magdeburg", "Dessau-Roßlau", "Lutherstadt Wittenberg", "Stendal", "Merseburg"],
-  "Schleswig-Holstein": ["Kiel", "Lübeck", "Flensburg", "Neumünster", "Norderstedt", "Elmshorn", "Pinneberg"],
-  "Mecklenburg-Vorpommern": ["Rostock", "Schwerin", "Neubrandenburg", "Stralsund", "Greifswald", "Wismar"],
-  "Saarland": ["Saarbrücken", "Neunkirchen", "Homburg", "Völklingen", "Saarlouis", "Merzig"],
-  "Bremen": ["Bremen", "Bremerhaven"],
-  // ── Schweiz ──
-  "Zürich": ["Zürich", "Winterthur", "Uster", "Dübendorf", "Dietikon", "Kloten", "Regensdorf"],
-  "Bern": ["Bern", "Biel", "Thun", "Köniz", "Ostermundigen", "Steffisburg", "Langenthal"],
-  "Luzern": ["Luzern", "Kriens", "Emmen", "Horw", "Littau", "Sursee", "Willisau"],
-  "Basel-Stadt": ["Basel"],
-  "Basel-Landschaft": ["Liestal", "Allschwil", "Reinach", "Binningen", "Birsfelden", "Arlesheim"],
-  "St. Gallen": ["St. Gallen", "Rapperswil-Jona", "Wil", "Gossau", "Arbon", "Rorschach"],
-  "Aargau": ["Aarau", "Baden", "Wettingen", "Brugg", "Rheinfelden", "Zofingen", "Lenzburg"],
-  "Thurgau": ["Frauenfeld", "Kreuzlingen", "Arbon", "Amriswil", "Weinfelden"],
-  "Graubünden": ["Chur", "Davos", "St. Moritz", "Arosa", "Ilanz"],
-  "Waadt": ["Lausanne", "Montreux", "Renens", "Nyon", "Yverdon-les-Bains", "Morges"],
-  "Wallis": ["Sion", "Sitten", "Brig-Glis", "Visp", "Monthey", "Martigny"],
-  "Genf": ["Genf", "Carouge", "Lancy", "Meyrin", "Vernier", "Onex"],
-  "Solothurn": ["Solothurn", "Olten", "Grenchen", "Bettlach", "Biberist"],
-  "Zug": ["Zug", "Baar", "Cham", "Steinhausen", "Risch-Rotkreuz"],
-  "Schaffhausen": ["Schaffhausen", "Neuhausen am Rheinfall", "Kreuzlingen"],
+  // ── Österreich (9 Bundesländer) ──
+  "Wien": ["Wien Innere Stadt", "Wien Leopoldstadt", "Wien Landstraße", "Wien Favoriten", "Wien Margareten", "Wien Mariahilf", "Wien Neubau", "Wien Josefstadt", "Wien Döbling", "Wien Floridsdorf", "Wien Ottakring", "Wien Hietzing"],
+  "Niederösterreich": ["St. Pölten", "Wiener Neustadt", "Baden", "Krems an der Donau", "Amstetten", "Mödling", "Korneuburg", "Tulln", "Zwettl", "Mistelbach", "Hollabrunn", "Waidhofen an der Ybbs", "Stockerau", "Klosterneuburg", "Schwechat"],
+  "Oberösterreich": ["Linz", "Wels", "Steyr", "Leonding", "Traun", "Braunau am Inn", "Ried im Innkreis", "Vöcklabruck", "Gmunden", "Enns", "Marchtrenk", "Bad Ischl", "Schärding", "Rohrbach", "Freistadt"],
+  "Steiermark": ["Graz", "Leoben", "Kapfenberg", "Bruck an der Mur", "Leibnitz", "Feldbach", "Weiz", "Hartberg", "Judenburg", "Voitsberg", "Deutschlandsberg", "Murau", "Liezen", "Fürstenfeld", "Knittelfeld"],
+  "Salzburg": ["Salzburg", "Hallein", "Wals-Siezenheim", "Seekirchen", "Saalfelden", "Bischofshofen", "St. Johann im Pongau", "Zell am See", "Straßwalchen", "Oberndorf bei Salzburg", "Mittersill", "Neumarkt am Wallersee", "Radstadt"],
+  "Tirol": ["Innsbruck", "Kufstein", "Schwaz", "Hall in Tirol", "Wörgl", "Lienz", "Telfs", "Imst", "Landeck", "Reutte", "Kitzbühel", "St. Johann in Tirol", "Jenbach", "Zirl", "Rum"],
+  "Kärnten": ["Klagenfurt", "Villach", "Wolfsberg", "Spittal an der Drau", "Feldkirchen", "St. Veit an der Glan", "Völkermarkt", "Hermagor", "Althofen", "Ferlach", "Bad St. Leonhard", "Friesach", "Gmünd", "Radenthein"],
+  "Vorarlberg": ["Bregenz", "Dornbirn", "Feldkirch", "Bludenz", "Hohenems", "Lustenau", "Hard", "Rankweil", "Götzis", "Lauterach", "Wolfurt", "Schwarzach"],
+  "Burgenland": ["Eisenstadt", "Oberwart", "Neusiedl am See", "Güssing", "Jennersdorf", "Mattersburg", "Oberpullendorf", "Pinkafeld", "Stegersbach", "Deutschkreutz", "Rust", "Frauenkirchen"],
+  // ── Deutschland (16 Bundesländer) ──
+  "Bayern": ["München", "Nürnberg", "Augsburg", "Regensburg", "Würzburg", "Ingolstadt", "Fürth", "Erlangen", "Bayreuth", "Landshut", "Rosenheim", "Bamberg", "Aschaffenburg", "Passau", "Kempten"],
+  "Nordrhein-Westfalen": ["Köln", "Düsseldorf", "Dortmund", "Essen", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster", "Aachen", "Krefeld", "Mönchengladbach", "Gelsenkirchen", "Oberhausen"],
+  "Baden-Württemberg": ["Stuttgart", "Mannheim", "Karlsruhe", "Freiburg im Breisgau", "Heidelberg", "Ulm", "Heilbronn", "Pforzheim", "Reutlingen", "Konstanz", "Tübingen", "Offenburg", "Villingen-Schwenningen", "Esslingen", "Ludwigsburg"],
+  "Berlin": ["Berlin Mitte", "Berlin Charlottenburg", "Berlin Kreuzberg", "Berlin Steglitz", "Berlin Spandau", "Berlin Tempelhof", "Berlin Pankow", "Berlin Neukölln", "Berlin Lichtenberg", "Berlin Reinickendorf"],
+  "Hamburg": ["Hamburg Mitte", "Hamburg Altona", "Hamburg Eimsbüttel", "Hamburg Wandsbek", "Hamburg Bergedorf", "Hamburg Harburg", "Hamburg Nord", "Hamburg Blankenese", "Hamburg Barmbek", "Hamburg Winterhude"],
+  "Hessen": ["Frankfurt am Main", "Wiesbaden", "Kassel", "Darmstadt", "Hanau", "Offenbach am Main", "Marburg", "Gießen", "Fulda", "Wetzlar", "Bad Homburg", "Rüsselsheim", "Limburg an der Lahn"],
+  "Niedersachsen": ["Hannover", "Braunschweig", "Osnabrück", "Oldenburg", "Göttingen", "Wolfsburg", "Salzgitter", "Hildesheim", "Lüneburg", "Hameln", "Celle", "Delmenhorst", "Emden", "Lingen", "Wilhelmshaven"],
+  "Rheinland-Pfalz": ["Mainz", "Ludwigshafen", "Koblenz", "Trier", "Kaiserslautern", "Worms", "Neuwied", "Neustadt an der Weinstraße", "Speyer", "Frankenthal", "Bad Kreuznach", "Andernach"],
+  "Sachsen": ["Leipzig", "Dresden", "Chemnitz", "Zwickau", "Plauen", "Görlitz", "Freiberg", "Bautzen", "Pirna", "Meißen", "Döbeln", "Riesa"],
+  "Thüringen": ["Erfurt", "Jena", "Gera", "Weimar", "Gotha", "Suhl", "Nordhausen", "Eisenach", "Altenburg", "Mühlhausen", "Ilmenau", "Saalfeld"],
+  "Brandenburg": ["Potsdam", "Cottbus", "Brandenburg an der Havel", "Frankfurt an der Oder", "Oranienburg", "Eberswalde", "Bernau", "Falkensee", "Schwedt", "Königs Wusterhausen", "Strausberg", "Neuruppin"],
+  "Sachsen-Anhalt": ["Halle", "Magdeburg", "Dessau-Roßlau", "Lutherstadt Wittenberg", "Stendal", "Merseburg", "Halberstadt", "Wernigerode", "Naumburg", "Bernburg", "Quedlinburg", "Schönebeck"],
+  "Schleswig-Holstein": ["Kiel", "Lübeck", "Flensburg", "Neumünster", "Norderstedt", "Elmshorn", "Pinneberg", "Itzehoe", "Wedel", "Rendsburg", "Husum", "Bad Oldesloe"],
+  "Mecklenburg-Vorpommern": ["Rostock", "Schwerin", "Neubrandenburg", "Stralsund", "Greifswald", "Wismar", "Güstrow", "Waren", "Anklam", "Parchim", "Bergen auf Rügen"],
+  "Saarland": ["Saarbrücken", "Neunkirchen", "Homburg", "Völklingen", "Saarlouis", "Merzig", "St. Ingbert", "St. Wendel", "Dillingen", "Lebach"],
+  "Bremen": ["Bremen", "Bremerhaven", "Bremen-Nord", "Vegesack"],
+  // ── Schweiz (alle 26 Kantone) ──
+  "Zürich": ["Zürich", "Winterthur", "Uster", "Dübendorf", "Dietikon", "Kloten", "Regensdorf", "Wädenswil", "Horgen", "Bülach"],
+  "Bern": ["Bern", "Biel", "Thun", "Köniz", "Ostermundigen", "Steffisburg", "Langenthal", "Burgdorf", "Spiez", "Interlaken"],
+  "Luzern": ["Luzern", "Kriens", "Emmen", "Horw", "Littau", "Sursee", "Willisau", "Hochdorf"],
+  "Uri": ["Altdorf", "Erstfeld", "Bürglen", "Schattdorf", "Flüelen"],
+  "Schwyz": ["Schwyz", "Einsiedeln", "Freienbach", "Küssnacht", "Arth", "Lachen"],
+  "Obwalden": ["Sarnen", "Kerns", "Alpnach", "Engelberg", "Sachseln"],
+  "Nidwalden": ["Stans", "Hergiswil", "Buochs", "Ennetbürgen", "Beckenried"],
+  "Glarus": ["Glarus", "Näfels", "Netstal", "Ennenda", "Mollis"],
+  "Zug": ["Zug", "Baar", "Cham", "Steinhausen", "Risch-Rotkreuz", "Hünenberg"],
+  "Freiburg": ["Freiburg", "Bulle", "Villars-sur-Glâne", "Düdingen", "Murten", "Marly"],
+  "Solothurn": ["Solothurn", "Olten", "Grenchen", "Bettlach", "Biberist", "Zuchwil"],
+  "Basel-Stadt": ["Basel", "Riehen", "Bettingen"],
+  "Basel-Landschaft": ["Liestal", "Allschwil", "Reinach", "Binningen", "Birsfelden", "Arlesheim", "Muttenz", "Pratteln"],
+  "Schaffhausen": ["Schaffhausen", "Neuhausen am Rheinfall", "Thayngen", "Beringen"],
+  "Appenzell Ausserrhoden": ["Herisau", "Teufen", "Speicher", "Heiden", "Bühler"],
+  "Appenzell Innerrhoden": ["Appenzell", "Oberegg", "Rüte", "Gonten"],
+  "St. Gallen": ["St. Gallen", "Rapperswil-Jona", "Wil", "Gossau", "Arbon", "Rorschach", "Buchs", "Altstätten"],
+  "Graubünden": ["Chur", "Davos", "St. Moritz", "Arosa", "Ilanz", "Landquart", "Thusis"],
+  "Aargau": ["Aarau", "Baden", "Wettingen", "Brugg", "Rheinfelden", "Zofingen", "Lenzburg", "Wohlen", "Oftringen"],
+  "Thurgau": ["Frauenfeld", "Kreuzlingen", "Arbon", "Amriswil", "Weinfelden", "Romanshorn"],
+  "Tessin": ["Lugano", "Bellinzona", "Locarno", "Mendrisio", "Chiasso", "Ascona", "Biasca"],
+  "Waadt": ["Lausanne", "Montreux", "Renens", "Nyon", "Yverdon-les-Bains", "Morges", "Vevey", "Pully", "Aigle"],
+  "Wallis": ["Sion", "Brig-Glis", "Visp", "Monthey", "Martigny", "Sierre", "Naters"],
+  "Neuenburg": ["Neuenburg", "La Chaux-de-Fonds", "Le Locle", "Val-de-Travers", "Boudry"],
+  "Genf": ["Genf", "Carouge", "Lancy", "Meyrin", "Vernier", "Onex", "Thônex", "Plan-les-Ouates"],
+  "Jura": ["Delémont", "Porrentruy", "Saignelégier", "Courrendlin", "Bassecourt"],
 };
 
 interface GooglePlace {
@@ -263,17 +274,16 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
       const companyName = place.displayName?.text || "Unbekannt";
       const companyStart = Date.now();
 
-      // Cancellation Check alle 5 Firmen
-      if (i > 0 && i % 5 === 0) {
-        const cancelled = await isJobCancelled(jobId);
-        if (cancelled) {
-          console.log(`[Pipeline] Job ${jobId} abgebrochen bei ${i}/${allPlaces.length}`);
-          await updateJobStatus(jobId, "failed", {
-            error_message: "Vom Benutzer abgebrochen",
-            completed_at: new Date().toISOString(),
-          });
-          return;
-        }
+      // Cancellation Check bei jeder Firma
+      const cancelled = await isJobCancelled(jobId);
+      if (cancelled) {
+        console.log(`[Pipeline] Job ${jobId} abgebrochen bei ${i}/${allPlaces.length}`);
+        await updateJobStatus(jobId, "failed", {
+          error_message: "Vom Benutzer abgebrochen",
+          results_count: resultsCount,
+          completed_at: new Date().toISOString(),
+        });
+        return;
       }
 
       try {
@@ -287,11 +297,30 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
         } else if (requireCeo && !lead.ceo_name) {
           console.log(`[Pipeline]   → Skip (kein Geschäftsführer gefunden, requireCeo aktiv)`);
         } else {
-          const { error } = await getSupabaseAdmin().from("leads").insert(lead);
-          if (error) {
-            console.error(`[Pipeline]   → Insert-Fehler:`, error.message);
+          // Duplikatsprüfung: google_place_id ODER email
+          const dupeChecks: string[] = [];
+          if (lead.google_place_id) dupeChecks.push(`google_place_id.eq.${lead.google_place_id}`);
+          if (lead.email) dupeChecks.push(`email.eq.${lead.email}`);
+
+          let isDuplicate = false;
+          if (dupeChecks.length > 0) {
+            const { data: existing } = await getSupabaseAdmin()
+              .from("leads")
+              .select("id")
+              .or(dupeChecks.join(","))
+              .limit(1);
+            isDuplicate = !!existing && existing.length > 0;
+          }
+
+          if (isDuplicate) {
+            console.log(`[Pipeline]   → Skip (Duplikat: place_id oder email existiert bereits)`);
           } else {
-            resultsCount++;
+            const { error } = await getSupabaseAdmin().from("leads").insert(lead);
+            if (error) {
+              console.error(`[Pipeline]   → Insert-Fehler:`, error.message);
+            } else {
+              resultsCount++;
+            }
           }
         }
       } catch (err) {
@@ -301,6 +330,9 @@ export async function runEnrichmentPipeline(params: PipelineParams): Promise<voi
       processedCount++;
       timings.push(Date.now() - companyStart);
       await updateETA(jobId, resultsCount, processedCount, allPlaces.length, timings);
+
+      // Kleine Pause zwischen Firmen um LangSearch Rate-Limits zu vermeiden
+      if (i < allPlaces.length - 1) await sleep(500);
     }
 
     await updateJobStatus(jobId, "completed", {
@@ -355,7 +387,7 @@ async function searchGooglePlaces(query: string, location: string): Promise<Goog
   const allPlaces: GooglePlace[] = [];
   let pageToken: string | undefined;
 
-  for (let page = 0; page < 3; page++) {
+  for (let page = 0; page < 5; page++) {
     const body: Record<string, unknown> = {
       textQuery: `${query} in ${location}`,
       languageCode: "de",
@@ -524,42 +556,63 @@ async function searchCEO(companyName: string, location: string): Promise<{
   const apiKey = process.env.LANGSEARCH_API_KEY;
   if (!apiKey) return { ceoName: null, snippets: "" };
 
-  try {
-    const searchQuery = `${companyName} ${location} Geschäftsführer OR CEO OR Inhaber OR "managing director"`;
+  const searchQuery = `${companyName} ${location} Geschäftsführer OR CEO OR Inhaber OR "managing director"`;
+  const MAX_RETRIES = 3;
 
-    const response = await fetch("https://api.langsearch.com/v1/web-search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        freshness: "noLimit",
-        summary: true,
-        count: 10,
-      }),
-    });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch("https://api.langsearch.com/v1/web-search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          freshness: "noLimit",
+          summary: true,
+          count: 10,
+        }),
+      });
 
-    if (!response.ok) {
-      console.warn(`[LangSearch] Fehler ${response.status} für "${companyName}"`);
+      if (response.status === 429) {
+        if (attempt < MAX_RETRIES) {
+          const waitMs = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s
+          console.warn(`[LangSearch] 429 für "${companyName}" → Retry ${attempt + 1}/${MAX_RETRIES} in ${waitMs}ms`);
+          await sleep(waitMs);
+          continue;
+        }
+        console.warn(`[LangSearch] 429 für "${companyName}" → Alle Retries aufgebraucht`);
+        return { ceoName: null, snippets: "" };
+      }
+
+      if (!response.ok) {
+        console.warn(`[LangSearch] Fehler ${response.status} für "${companyName}"`);
+        return { ceoName: null, snippets: "" };
+      }
+
+      const data = await response.json();
+      const results: { name: string; snippet?: string; summary?: string }[] =
+        data.webPages?.value || [];
+
+      const snippets = results
+        .slice(0, 10)
+        .map((r) => `${r.name}: ${r.snippet || ""} ${r.summary || ""}`)
+        .join("\n");
+
+      return { ceoName: null, snippets }; // CEO-Extraktion komplett an Gemini delegieren
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[LangSearch] Netzwerkfehler für "${companyName}" → Retry ${attempt + 1}/${MAX_RETRIES}`);
+        await sleep(2000 * Math.pow(2, attempt));
+        continue;
+      }
+      console.error(`[LangSearch] Fehler bei CEO-Suche:`, err);
       return { ceoName: null, snippets: "" };
     }
-
-    const data = await response.json();
-    const results: { name: string; snippet?: string; summary?: string }[] =
-      data.webPages?.value || [];
-
-    const snippets = results
-      .slice(0, 10)
-      .map((r) => `${r.name}: ${r.snippet || ""} ${r.summary || ""}`)
-      .join("\n");
-
-    return { ceoName: null, snippets }; // CEO-Extraktion komplett an Gemini delegieren
-  } catch (err) {
-    console.error(`[LangSearch] Fehler bei CEO-Suche:`, err);
-    return { ceoName: null, snippets: "" };
   }
+
+  return { ceoName: null, snippets: "" };
 }
 
 /* ══════════════════════════════════════════════════════
@@ -578,8 +631,14 @@ async function enrichAndBuildLead(
   const website = (place.websiteUri || "").replace(/\/$/, "");
 
   // Parallel: Website scrapen + CEO suchen (wie n8n Nodes 7a + 8)
+  // Beide mit Fehler-Fallback damit ein Fehler nicht den ganzen Lead killt
   const [websiteData, ceoData] = await Promise.all([
-    website ? fetchWebsiteData(website) : Promise.resolve(null),
+    website
+      ? fetchWebsiteData(website).catch((err) => {
+          console.warn(`[Pipeline] Website-Scraping fehlgeschlagen für ${website}:`, err instanceof Error ? err.message : err);
+          return null;
+        })
+      : Promise.resolve(null),
     searchCEO(companyName, location),
   ]);
 
@@ -628,7 +687,7 @@ async function enrichAndBuildLead(
   const lead: LeadInsert = {
     company: aiResult?.company_name || companyName,
     company_name: aiResult?.company_name || null,
-    name: ceoName || null,
+    name: ceoName || aiResult?.company_name || companyName,
     email: bestEmail,
     phone: bestPhone,
     website,

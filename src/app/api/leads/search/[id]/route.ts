@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSearchJobById, updateSearchJobStatus } from "@/lib/supabase/leads";
 
 export async function GET(
@@ -128,6 +129,75 @@ export async function PATCH(
     return NextResponse.json({ data: updated });
   } catch (error) {
     console.error("[API PATCH /api/leads/search/[id]] Fehler:", error);
+    return NextResponse.json(
+      { error: "Interner Serverfehler" },
+      { status: 500 },
+    );
+  }
+}
+
+/* ── DELETE: SearchJob löschen ── */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Nicht authentifiziert" },
+        { status: 401 },
+      );
+    }
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json(
+        { error: "Ungültige Job-ID" },
+        { status: 400 },
+      );
+    }
+
+    const searchJob = await getSearchJobById(id);
+    if (!searchJob) {
+      return NextResponse.json(
+        { error: "SearchJob nicht gefunden" },
+        { status: 404 },
+      );
+    }
+
+    if (searchJob.user_id !== user.id) {
+      return NextResponse.json(
+        { error: "Zugriff verweigert" },
+        { status: 403 },
+      );
+    }
+
+    // Admin-Client für DELETE (RLS-bypass, Ownership oben bereits geprüft)
+    const { error: delError } = await getSupabaseAdmin()
+      .from("search_jobs")
+      .delete()
+      .eq("id", id);
+
+    if (delError) {
+      console.error("[API DELETE] Supabase-Fehler:", delError.message);
+      return NextResponse.json(
+        { error: `Löschen fehlgeschlagen: ${delError.message}` },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[API DELETE /api/leads/search/[id]] Fehler:", error);
     return NextResponse.json(
       { error: "Interner Serverfehler" },
       { status: 500 },

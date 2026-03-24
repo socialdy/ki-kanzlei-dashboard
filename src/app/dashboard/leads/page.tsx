@@ -58,6 +58,7 @@ import { LeadDeleteDialog } from "@/components/leads/LeadDeleteDialog";
 import { SearchJobsList } from "@/components/leads/SearchJobsList";
 import { LeadSearchForm } from "@/components/leads/LeadSearchForm";
 import { IndustryCombobox } from "@/components/leads/IndustryCombobox";
+import { FilterCombobox } from "@/components/leads/FilterCombobox";
 import type { SearchFormValues, SearchSource } from "@/components/leads/LeadSearchForm";
 
 import type { Lead, LeadStatus, SearchJob } from "@/types/leads";
@@ -79,10 +80,10 @@ function buildPageNumbers(current: number, total: number): (number | "…")[] {
 const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "all",       label: "Alle Status" },
   { value: "new",       label: "Neu" },
-  { value: "enriched",  label: "Angereichert" },
+  { value: "interested",     label: "Interessiert" },
   { value: "contacted", label: "Kontaktiert" },
   { value: "converted", label: "Konvertiert" },
-  { value: "closed",    label: "Geschlossen" },
+  { value: "not_interested", label: "Kein Interesse" },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -115,21 +116,27 @@ export default function LeadScrapingPage() {
   const [filterStatus, setFilterStatus]     = useState("all");
   const [filterIndustry, setFilterIndustry] = useState<string | undefined>(undefined);
   const [filterLegalForm, setFilterLegalForm] = useState<string>("all");
+  const [filterCity, setFilterCity]         = useState<string>("all");
+  const [filterCountry, setFilterCountry]   = useState<string>("all");
 
   /* ── Sorting & Column Visibility ── */
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-  /* ── Dynamic Industries ── */
+  /* ── Dynamic Filter Options ── */
   const [industryOptions, setIndustryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [cityOptions, setCityOptions]     = useState<{ value: string; label: string }[]>([]);
+  const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry || filterLegalForm !== "all";
+  const hasActiveFilters = filterSearch || filterStatus !== "all" || filterIndustry || filterLegalForm !== "all" || filterCity !== "all" || filterCountry !== "all";
 
   function resetFilters() {
     setFilterSearch("");
     setFilterStatus("all");
     setFilterIndustry(undefined);
     setFilterLegalForm("all");
+    setFilterCity("all");
+    setFilterCountry("all");
     setLeadsPage(1);
   }
 
@@ -145,15 +152,28 @@ export default function LeadScrapingPage() {
     })();
   }, []);
 
-  /* ── Fetch industries ── */
+  /* ── Fetch filter options (industries, cities, countries) ── */
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/leads/industries");
-        if (!res.ok) return;
-        const json = await res.json();
-        const opts = (json.data as string[]).map((v) => ({ value: v, label: v }));
-        setIndustryOptions(opts);
+        const [indRes, cityRes, countryRes] = await Promise.all([
+          fetch("/api/leads/industries"),
+          fetch("/api/leads/cities"),
+          fetch("/api/leads/countries"),
+        ]);
+        if (indRes.ok) {
+          const json = await indRes.json();
+          setIndustryOptions((json.data as string[]).map((v) => ({ value: v, label: v })));
+        }
+        if (cityRes.ok) {
+          const json = await cityRes.json();
+          setCityOptions((json.data as string[]).map((v) => ({ value: v, label: v })));
+        }
+        if (countryRes.ok) {
+          const json = await countryRes.json();
+          const COUNTRY_LABELS: Record<string, string> = { AT: "Österreich", DE: "Deutschland", CH: "Schweiz" };
+          setCountryOptions((json.data as string[]).map((v) => ({ value: v, label: COUNTRY_LABELS[v] ?? v })));
+        }
       } catch { /* silent */ }
     })();
   }, [leads]); // refetch when leads change
@@ -167,6 +187,8 @@ export default function LeadScrapingPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterIndustry) params.set("industry", filterIndustry);
       if (filterLegalForm !== "all") params.set("legal_form", filterLegalForm);
+      if (filterCity !== "all") params.set("city", filterCity);
+      if (filterCountry !== "all") params.set("country", filterCountry);
       if (sorting.length > 0) {
         params.set("sort_by", sorting[0].id);
         params.set("sort_dir", sorting[0].desc ? "desc" : "asc");
@@ -182,7 +204,7 @@ export default function LeadScrapingPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filterSearch, filterStatus, filterIndustry, filterLegalForm, sorting]);
+  }, [filterSearch, filterStatus, filterIndustry, filterLegalForm, filterCity, filterCountry, sorting]);
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -210,7 +232,7 @@ export default function LeadScrapingPage() {
     setIsGlobalSelected(false);
     fetchLeads(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterIndustry, filterLegalForm, sorting]);
+  }, [filterStatus, filterIndustry, filterLegalForm, filterCity, filterCountry, sorting]);
 
   /* ── Debounced text-filter fetch (500ms, min 2 chars or empty) ── */
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -233,7 +255,8 @@ export default function LeadScrapingPage() {
   }, [filterSearch]);
 
   /* ── Polling + Stale-Job-Timeout ── */
-  const STALE_JOB_TIMEOUT_MS = 10 * 60 * 1000;
+  const STALE_JOB_TIMEOUT_MS = 60 * 60 * 1000; // 60 Minuten — Pipeline kann bei großen Regionen lange dauern
+  const timedOutJobsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const activeJobs = searchJobs.filter(
@@ -248,8 +271,10 @@ export default function LeadScrapingPage() {
         searchJobs.map(async (job) => {
           if (job.status !== "pending" && job.status !== "running") return job;
 
+          // Timeout nur einmal pro Job auslösen
           const jobAge = now - new Date(job.created_at).getTime();
-          if (jobAge > STALE_JOB_TIMEOUT_MS) {
+          if (jobAge > STALE_JOB_TIMEOUT_MS && !timedOutJobsRef.current.has(job.id)) {
+            timedOutJobsRef.current.add(job.id);
             hasChanges = true;
             toast.error(
               `Suche "${job.query}" abgebrochen — Zeitüberschreitung (Server nicht erreichbar)`,
@@ -274,7 +299,7 @@ export default function LeadScrapingPage() {
             if (!res.ok) return job;
             const json = await res.json();
             const updated = json.data as SearchJob;
-            if (updated.status !== job.status) {
+            if (updated.status !== job.status || updated.results_count !== job.results_count) {
               hasChanges = true;
               if (updated.status === "completed") {
                 toast.success(
@@ -309,7 +334,7 @@ export default function LeadScrapingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query:        values.query,
-          location:     values.location,
+          location:     values.location || undefined,
           country:      values.country ?? "AT",
           company_type: values.company_type,
           city:         values.city || undefined,
@@ -364,6 +389,8 @@ export default function LeadScrapingPage() {
         status: filterStatus === "all" ? undefined : filterStatus,
         industry: filterIndustry,
         legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+        city: filterCity === "all" ? undefined : filterCity,
+        country: filterCountry === "all" ? undefined : filterCountry,
       };
     } else {
       payload.ids = ids;
@@ -426,6 +453,8 @@ export default function LeadScrapingPage() {
           if (filterStatus !== "all") params.set("status", filterStatus);
           if (filterIndustry) params.set("industry", filterIndustry);
           if (filterLegalForm !== "all") params.set("legal_form", filterLegalForm);
+          if (filterCity !== "all") params.set("city", filterCity);
+          if (filterCountry !== "all") params.set("country", filterCountry);
           const res = await fetch(`/api/leads?${params.toString()}`);
           if (!res.ok) throw new Error();
           const json = await res.json();
@@ -602,7 +631,27 @@ export default function LeadScrapingPage() {
 
         {/* Tab: Suchaufträge */}
         <TabsContent value="search" className="mt-4">
-          <SearchJobsList jobs={searchJobs} loading={jobsLoading} />
+          <SearchJobsList
+            jobs={searchJobs}
+            loading={jobsLoading}
+            onJobCancelled={(jobId) => {
+              setSearchJobs((prev) =>
+                prev.map((j) =>
+                  j.id === jobId
+                    ? { ...j, status: "failed" as const, error_message: "Vom Benutzer abgebrochen" }
+                    : j,
+                ),
+              );
+              fetchLeads(leadsPage);
+            }}
+            onJobDeleted={(jobId) => {
+              setSearchJobs((prev) => prev.filter((j) => j.id !== jobId));
+            }}
+            onBulkDeleted={(jobIds) => {
+              const deletedSet = new Set(jobIds);
+              setSearchJobs((prev) => prev.filter((j) => !deletedSet.has(j.id)));
+            }}
+          />
         </TabsContent>
 
         {/* Tab: Alle Leads */}
@@ -610,9 +659,9 @@ export default function LeadScrapingPage() {
           <div className="rounded-lg border bg-card overflow-hidden">
 
             {/* Toolbar */}
-            <div className="px-4 py-3 border-b bg-muted/20">
+            <div className="px-4 py-3 border-b bg-muted/20 space-y-2.5">
+              {/* Zeile 1: Textsuche + Status + Branche */}
               <div className="flex items-center gap-3 flex-wrap">
-                {/* Textsuche */}
                 <div className="relative w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
                   <input
@@ -624,9 +673,8 @@ export default function LeadScrapingPage() {
                   />
                 </div>
 
-                {/* Status */}
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="h-9 w-44 text-sm">
+                  <SelectTrigger className="h-9 w-40 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -638,8 +686,7 @@ export default function LeadScrapingPage() {
                   </SelectContent>
                 </Select>
 
-                {/* Branche */}
-                <div className="w-52">
+                <div className="w-48">
                   <IndustryCombobox
                     value={filterIndustry}
                     onChange={(val) => setFilterIndustry(val ?? undefined)}
@@ -648,9 +695,35 @@ export default function LeadScrapingPage() {
                   />
                 </div>
 
-                {/* Rechtsform */}
+                <DataTableViewOptions table={toolbarTable} />
+              </div>
+
+              {/* Zeile 2: Standort-Filter + Rechtsform + Reset */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <FilterCombobox
+                  value={filterCountry}
+                  onChange={setFilterCountry}
+                  options={countryOptions}
+                  placeholder="Land"
+                  searchPlaceholder="Land suchen…"
+                  emptyText="Kein Land gefunden"
+                  allLabel="Alle Länder"
+                  className="w-40 text-sm"
+                />
+
+                <FilterCombobox
+                  value={filterCity}
+                  onChange={setFilterCity}
+                  options={cityOptions}
+                  placeholder="Stadt"
+                  searchPlaceholder="Stadt suchen…"
+                  emptyText="Keine Stadt gefunden"
+                  allLabel="Alle Städte"
+                  className="w-44 text-sm"
+                />
+
                 <Select value={filterLegalForm} onValueChange={setFilterLegalForm}>
-                  <SelectTrigger className="h-9 w-48 text-sm">
+                  <SelectTrigger className="h-9 w-44 text-sm">
                     <SelectValue placeholder="Rechtsform" />
                   </SelectTrigger>
                   <SelectContent>
@@ -663,10 +736,6 @@ export default function LeadScrapingPage() {
                   </SelectContent>
                 </Select>
 
-                {/* Spalten */}
-                <DataTableViewOptions table={toolbarTable} />
-
-                {/* Reset */}
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -808,6 +877,8 @@ export default function LeadScrapingPage() {
           status: filterStatus === "all" ? undefined : (filterStatus as LeadStatus),
           industry: filterIndustry,
           legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+          city: filterCity === "all" ? undefined : filterCity,
+          country: filterCountry === "all" ? undefined : filterCountry,
         }}
         crmSettings={crmSettings}
         onClear={() => {
@@ -841,6 +912,8 @@ export default function LeadScrapingPage() {
           status: filterStatus === "all" ? undefined : (filterStatus as LeadStatus),
           industry: filterIndustry,
           legal_form: filterLegalForm === "all" ? undefined : filterLegalForm,
+          city: filterCity === "all" ? undefined : filterCity,
+          country: filterCountry === "all" ? undefined : filterCountry,
         }}
         onDeleted={handleDeleted}
       />

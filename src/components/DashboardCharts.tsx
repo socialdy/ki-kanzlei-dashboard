@@ -22,11 +22,11 @@ import {
 
 /* ── Lead Status Donut ── */
 const leadStatusConfig: ChartConfig = {
-  new:        { label: "Neu",          color: "oklch(0.65 0.20 250)" },
-  enriched:   { label: "Angereichert", color: "oklch(0.65 0.17 160)" },
-  contacted:  { label: "Kontaktiert",  color: "oklch(0.70 0.15 55)" },
-  converted:  { label: "Konvertiert",  color: "oklch(0.60 0.19 145)" },
-  closed:     { label: "Geschlossen",  color: "oklch(0.55 0.02 250)" },
+  new:              { label: "Neu",            color: "oklch(0.65 0.20 250)" },
+  contacted:        { label: "Kontaktiert",    color: "oklch(0.70 0.15 55)" },
+  interested:       { label: "Interessiert",   color: "oklch(0.65 0.17 160)" },
+  not_interested:   { label: "Kein Interesse", color: "oklch(0.55 0.02 250)" },
+  converted:        { label: "Konvertiert",    color: "oklch(0.60 0.19 145)" },
 };
 
 interface LeadStatusChartProps {
