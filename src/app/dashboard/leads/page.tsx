@@ -348,7 +348,9 @@ export default function LeadScrapingPage() {
       const json = await res.json();
       setSearchJobs((prev) => [json.data as SearchJob, ...prev]);
       setActiveTab("search");
-      const locationLabel = values.city ? `${values.city} (${values.location})` : values.location;
+      const locationLabel = values.city
+        ? values.location ? `${values.city} (${values.location})` : values.city
+        : values.location || values.country || "DACH";
       toast.success(`Suche nach "${values.query}" in ${locationLabel} gestartet`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");

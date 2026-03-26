@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-    LayoutDashboard, Users, Send, Linkedin, Newspaper,
+    LayoutDashboard, Users, Send, Linkedin, SearchCheck, Share2,
     Settings, ChevronsUpDown,
     LogOut, BadgeCheck, Bell, Loader2,
 } from "lucide-react";
@@ -31,7 +31,8 @@ const mainNav = [
     { name: "Leads",         href: "/dashboard/leads",     icon: Users           },
     { name: "Kampagnen",     href: "/dashboard/campaigns", icon: Send            },
     { name: "LinkedIn",      href: "/dashboard/linkedin",  icon: Linkedin        },
-    { name: "SEO",           href: "/dashboard/seo",       icon: Newspaper       },
+    { name: "SEO",           href: "/dashboard/seo",       icon: SearchCheck     },
+    { name: "Social Media",  href: "/dashboard/social-media", icon: Share2       },
 ];
 
 const systemNav = [
@@ -99,7 +100,7 @@ export function AppSidebar({ user, role = "user" }: AppSidebarProps) {
                             className="hover:bg-transparent active:bg-transparent"
                         >
                             <Link href="/dashboard" className="flex items-center gap-3">
-                                <div className="h-8 w-8 overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center rounded-lg">
+                                <div className="h-8 w-8 overflow-hidden flex-shrink-0 bg-white/20 flex items-center justify-center rounded-md">
                                     <Image
                                         src="/KI-Kanzlei_Logo_2026.png"
                                         alt="KI Kanzlei"

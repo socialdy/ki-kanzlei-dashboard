@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
-  Search, Loader2, X, Newspaper, ExternalLink, Trash2,
+  Search, Loader2, X, SearchCheck, ExternalLink, Trash2,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -249,7 +249,7 @@ export default function SeoPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Newspaper className="h-6 w-6" />
+            <SearchCheck className="h-6 w-6" />
             SEO Blog-Posts
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

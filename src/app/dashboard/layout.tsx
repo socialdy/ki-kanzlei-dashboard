@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getUserRole } from "@/lib/supabase/profiles";
+import { getUserProfile } from "@/lib/supabase/profiles";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Header } from "@/components/Header";
@@ -18,14 +18,17 @@ export default async function DashboardLayout({
         redirect("/login");
     }
 
-    const [role, cookieStore] = await Promise.all([
-        getUserRole(user.id),
+    const [profile, cookieStore] = await Promise.all([
+        getUserProfile(user.id),
         cookies(),
     ]);
 
+    const role = profile?.role ?? "user";
+
     const sidebarUser = {
         email: user.email ?? "",
-        name: (user.user_metadata?.full_name as string | null)
+        name: profile?.display_name
+            ?? (user.user_metadata?.full_name as string | null)
             ?? (user.user_metadata?.name as string | null)
             ?? null,
     };

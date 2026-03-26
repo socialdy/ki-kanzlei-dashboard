@@ -130,7 +130,7 @@ interface NotifPrefs { email_new_lead: boolean; email_campaign_done: boolean; em
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tabs = ["company", "profile", "integrations", "outreach", "notifications"];
+  const tabs = ["company", "profile", "integrations", "leads", "campaigns", "outreach", "seo", "notifications"];
   const paramTab = searchParams.get("tab") ?? "";
   const initialTab = tabs.includes(paramTab) ? paramTab : "company";
 
@@ -173,6 +173,39 @@ export default function SettingsPage() {
   const [campDelay, setCampDelay] = useState(8);
   const [campReply, setCampReply] = useState("info@ki-kanzlei.at");
   const [notifs, setNotifs] = useState<NotifPrefs>({ email_new_lead: true, email_campaign_done: true, email_linkedin_reply: true, push_new_lead: false, push_campaign_error: true });
+
+  /* ── Leads Settings ── */
+  const [leadDefaultCountry, setLeadDefaultCountry] = useState("AT");
+  const [leadDefaultStatus, setLeadDefaultStatus] = useState("new");
+  const [leadRequireCeo, setLeadRequireCeo] = useState(false);
+  const [leadRequireEmail, setLeadRequireEmail] = useState(true);
+  const [leadDedup, setLeadDedup] = useState(true);
+  const [leadDedupField, setLeadDedupField] = useState("email");
+  const [leadPageSize, setLeadPageSize] = useState(20);
+  const [leadAutoScore, setLeadAutoScore] = useState(false);
+  const [leadScoreThreshold, setLeadScoreThreshold] = useState(50);
+
+  /* ── Campaign Settings ── */
+  const [campWarmup, setCampWarmup] = useState(false);
+  const [campWarmupStart, setCampWarmupStart] = useState(20);
+  const [campWarmupIncrement, setCampWarmupIncrement] = useState(10);
+  const [campBounceAction, setCampBounceAction] = useState("mark");
+  const [campTrackOpens, setCampTrackOpens] = useState(true);
+  const [campTrackClicks, setCampTrackClicks] = useState(true);
+  const [campSignature, setCampSignature] = useState("");
+  const [campUnsubLink, setCampUnsubLink] = useState(true);
+  const [campSendWindow, setCampSendWindow] = useState("business");
+
+  /* ── SEO Settings ── */
+  const [seoAutoPublish, setSeoAutoPublish] = useState(false);
+  const [seoDefaultCategory, setSeoDefaultCategory] = useState("");
+  const [seoMinWordCount, setSeoMinWordCount] = useState(800);
+  const [seoMaxWordCount, setSeoMaxWordCount] = useState(2500);
+  const [seoTargetKeywords, setSeoTargetKeywords] = useState(3);
+  const [seoMetaDescLength, setSeoMetaDescLength] = useState(160);
+  const [seoInternalLinks, setSeoInternalLinks] = useState(true);
+  const [seoFeaturedImage, setSeoFeaturedImage] = useState(true);
+  const [seoLanguage, setSeoLanguage] = useState("de");
 
   const toggleKey = (k: string) => setShowKeys((v) => ({ ...v, [k]: !v[k] }));
   const strength = pwReqs.map((r) => ({ met: r.regex.test(newPw), text: r.text }));
@@ -337,17 +370,20 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="px-4 lg:px-6">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="company">Unternehmen</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="integrations">Integrationen</TabsTrigger>
+            <TabsTrigger value="leads">Leads</TabsTrigger>
+            <TabsTrigger value="campaigns">Kampagnen</TabsTrigger>
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
+            <TabsTrigger value="seo">SEO</TabsTrigger>
             <TabsTrigger value="notifications">Benachrichtigungen</TabsTrigger>
           </TabsList>
 
           {/* ═══ UNTERNEHMEN ═══ */}
           <TabsContent value="company">
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>Unternehmen</CardTitle>
                 <CardDescription>Diese Angaben werden für Outreach, Kampagnen und KI-Nachrichten verwendet.</CardDescription>
@@ -401,7 +437,7 @@ export default function SettingsPage() {
 
           {/* ═══ PROFIL ═══ */}
           <TabsContent value="profile" className="space-y-4">
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>Anzeigename</CardTitle>
                 <CardDescription>Dein Name im Dashboard.</CardDescription>
@@ -418,7 +454,7 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
 
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>E-Mail-Adresse</CardTitle>
                 <CardDescription>Ändere deine Login-E-Mail.</CardDescription>
@@ -438,7 +474,7 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
 
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>Passwort</CardTitle>
                 <CardDescription>Passwort ändern.</CardDescription>
@@ -493,9 +529,9 @@ export default function SettingsPage() {
           {/* ═══ INTEGRATIONEN ═══ */}
           <TabsContent value="integrations" className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex items-center gap-1">
+              <div className="inline-flex items-center gap-1 rounded-lg border bg-card p-1">
                 {(["all", "active", "inactive"] as const).map((f) => (
-                  <Button key={f} variant={toolFilter === f ? "secondary" : "ghost"} size="sm" onClick={() => setToolFilter(f)}>
+                  <Button key={f} variant={toolFilter === f ? (f === "active" ? "default" : "secondary") : "ghost"} size="sm" onClick={() => setToolFilter(f)}>
                     {{ all: "Alle", active: "Aktiv", inactive: "Inaktiv" }[f]}
                   </Button>
                 ))}
@@ -516,7 +552,7 @@ export default function SettingsPage() {
                 const connected = tool.isConnected(settings);
                 const status = connStatus[tool.id];
                 return (
-                  <Card key={tool.id} className={cn("shadow-xs bg-gradient-to-t from-primary/5 to-card transition-all hover:shadow-sm", connected && "border-primary/20")}>
+                  <Card key={tool.id} className={cn("shadow-xs transition-all hover:shadow-sm", connected && "border-primary/20")}>
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex size-14 items-center justify-center rounded-2xl border bg-muted/40">
@@ -571,17 +607,21 @@ export default function SettingsPage() {
                               className="font-mono text-xs" autoComplete="off" spellCheck={false} />}
                       </div>
                     ))}
-                    {connStatus[tool.id] === "error" && connError[tool.id] && <p className="text-sm text-destructive flex items-center gap-1.5"><XCircle className="size-3.5 shrink-0" />{connError[tool.id]}</p>}
-                    {connStatus[tool.id] === "success" && <p className="text-sm text-primary flex items-center gap-1.5"><CheckCircle2 className="size-3.5" />Verbindung erfolgreich</p>}
-                  </div>
-                  <DialogFooter className="gap-2 sm:gap-0">
                     {tool.testProvider && (
-                      <Button variant="outline" size="sm" className="gap-1.5"
-                        disabled={!tool.fields.every((f) => (settings[f.key] ?? "").toString().trim()) || connStatus[tool.id] === "testing"}
-                        onClick={() => handleTestConnection(tool.id)}>
-                        {connStatus[tool.id] === "testing" ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}Testen
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <Button variant="outline" size="sm" className="gap-1.5"
+                          disabled={!tool.fields.every((f) => (settings[f.key] ?? "").toString().trim()) || connStatus[tool.id] === "testing"}
+                          onClick={() => handleTestConnection(tool.id)}>
+                          {connStatus[tool.id] === "testing" ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}Testen
+                        </Button>
+                        {connStatus[tool.id] === "success" && <span className="text-sm text-primary flex items-center gap-1.5"><CheckCircle2 className="size-3.5" />Verbunden</span>}
+                        {connStatus[tool.id] === "error" && connError[tool.id] && <span className="text-sm text-destructive flex items-center gap-1.5"><XCircle className="size-3.5 shrink-0" />{connError[tool.id]}</span>}
+                      </div>
                     )}
+                    {!tool.testProvider && connStatus[tool.id] === "error" && connError[tool.id] && <p className="text-sm text-destructive flex items-center gap-1.5"><XCircle className="size-3.5 shrink-0" />{connError[tool.id]}</p>}
+                    {!tool.testProvider && connStatus[tool.id] === "success" && <p className="text-sm text-primary flex items-center gap-1.5"><CheckCircle2 className="size-3.5" />Verbindung erfolgreich</p>}
+                  </div>
+                  <DialogFooter>
                     <Button size="sm" onClick={() => { handleSaveSettings(); setOpenDialog(null); }}>
                       {saving ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : <Save className="mr-2 size-3.5" />}Speichern
                     </Button>
@@ -591,9 +631,275 @@ export default function SettingsPage() {
             ))}
           </TabsContent>
 
+          {/* ═══ LEADS ═══ */}
+          <TabsContent value="leads" className="space-y-4">
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Lead-Import</CardTitle>
+                <CardDescription>Standardeinstellungen für den Lead-Import und die Suche.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-3">
+                    <Label>Standard-Land</Label>
+                    <Select value={leadDefaultCountry} onValueChange={setLeadDefaultCountry}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AT">Österreich</SelectItem>
+                        <SelectItem value="DE">Deutschland</SelectItem>
+                        <SelectItem value="CH">Schweiz</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-3">
+                    <Label>Standard-Status für neue Leads</Label>
+                    <Select value={leadDefaultStatus} onValueChange={setLeadDefaultStatus}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">Neu</SelectItem>
+                        <SelectItem value="contacted">Kontaktiert</SelectItem>
+                        <SelectItem value="interested">Interessiert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">CEO / Entscheider erforderlich</p>
+                    <p className="text-sm text-muted-foreground">Nur Leads mit Entscheider-Daten importieren.</p>
+                  </div>
+                  <Switch checked={leadRequireCeo} onCheckedChange={setLeadRequireCeo} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">E-Mail erforderlich</p>
+                    <p className="text-sm text-muted-foreground">Nur Leads mit gültiger E-Mail importieren.</p>
+                  </div>
+                  <Switch checked={leadRequireEmail} onCheckedChange={setLeadRequireEmail} />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Lead-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Duplikat-Erkennung</CardTitle>
+                <CardDescription>Automatische Erkennung und Vermeidung von doppelten Leads.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Duplikate automatisch erkennen</p>
+                    <p className="text-sm text-muted-foreground">Neue Leads werden mit vorhandenen verglichen.</p>
+                  </div>
+                  <Switch checked={leadDedup} onCheckedChange={setLeadDedup} />
+                </div>
+                {leadDedup && (
+                  <div className="grid gap-3">
+                    <Label>Duplikat-Erkennung basierend auf</Label>
+                    <Select value={leadDedupField} onValueChange={setLeadDedupField}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">E-Mail-Adresse</SelectItem>
+                        <SelectItem value="company">Firmenname</SelectItem>
+                        <SelectItem value="domain">Website-Domain</SelectItem>
+                        <SelectItem value="phone">Telefonnummer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Duplikat-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>KI Lead-Scoring</CardTitle>
+                <CardDescription>Automatische Bewertung neuer Leads durch Google Gemini.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Auto-Scoring aktivieren</p>
+                    <p className="text-sm text-muted-foreground">Leads automatisch nach Import bewerten.</p>
+                  </div>
+                  <Switch checked={leadAutoScore} onCheckedChange={setLeadAutoScore} />
+                </div>
+                {leadAutoScore && (
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Mindest-Score für Qualifizierung</Label>
+                      <span className="text-sm tabular-nums text-muted-foreground">{leadScoreThreshold} / 100</span>
+                    </div>
+                    <Slider value={[leadScoreThreshold]} onValueChange={([v]) => setLeadScoreThreshold(Math.min(100, Math.max(10, v)))} min={10} max={100} step={5} />
+                    <p className="text-xs text-muted-foreground">Leads mit einem Score unter {leadScoreThreshold} werden als niedrige Priorität markiert.</p>
+                  </div>
+                )}
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Leads pro Seite</Label>
+                    <span className="text-sm tabular-nums text-muted-foreground">{leadPageSize}</span>
+                  </div>
+                  <Slider value={[leadPageSize]} onValueChange={([v]) => setLeadPageSize(Math.min(100, Math.max(10, v)))} min={10} max={100} step={10} />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Scoring-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          {/* ═══ KAMPAGNEN ═══ */}
+          <TabsContent value="campaigns" className="space-y-4">
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>E-Mail-Kampagnen</CardTitle>
+                <CardDescription>Standard-Werte für neue Kampagnen.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Tägliches Sendelimit</Label>
+                    <span className="text-sm tabular-nums text-muted-foreground">{campLimit} / Tag</span>
+                  </div>
+                  <Slider value={[campLimit]} onValueChange={([v]) => setCampLimit(Math.min(500, Math.max(10, v)))} min={10} max={500} step={10} />
+                </div>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Verzögerung zwischen E-Mails</Label>
+                    <span className="text-sm tabular-nums text-muted-foreground">{campDelay} Min.</span>
+                  </div>
+                  <Slider value={[campDelay]} onValueChange={([v]) => setCampDelay(Math.min(60, Math.max(1, v)))} min={1} max={60} step={1} />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="reply-to">Reply-To E-Mail</Label>
+                  <Input id="reply-to" type="email" placeholder="info@ki-kanzlei.at" value={campReply}
+                    onChange={(e) => setCampReply(e.target.value.slice(0, 254))} maxLength={254} />
+                </div>
+                <div className="grid gap-3">
+                  <Label>Sendefenster</Label>
+                  <Select value={campSendWindow} onValueChange={setCampSendWindow}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="business">Geschäftszeiten (Mo-Fr 8-18 Uhr)</SelectItem>
+                      <SelectItem value="extended">Erweitert (Mo-Fr 7-21 Uhr)</SelectItem>
+                      <SelectItem value="always">Immer (24/7)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Kampagnen-Defaults gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Warm-Up Modus</CardTitle>
+                <CardDescription>Langsam das Sendelimit steigern, um die E-Mail-Reputation aufzubauen.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Warm-Up aktivieren</p>
+                    <p className="text-sm text-muted-foreground">Sendelimit wird automatisch erhöht.</p>
+                  </div>
+                  <Switch checked={campWarmup} onCheckedChange={setCampWarmup} />
+                </div>
+                {campWarmup && (
+                  <>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Start-Limit</Label>
+                        <span className="text-sm tabular-nums text-muted-foreground">{campWarmupStart} / Tag</span>
+                      </div>
+                      <Slider value={[campWarmupStart]} onValueChange={([v]) => setCampWarmupStart(Math.min(100, Math.max(5, v)))} min={5} max={100} step={5} />
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Tägliche Erhöhung</Label>
+                        <span className="text-sm tabular-nums text-muted-foreground">+{campWarmupIncrement} / Tag</span>
+                      </div>
+                      <Slider value={[campWarmupIncrement]} onValueChange={([v]) => setCampWarmupIncrement(Math.min(50, Math.max(1, v)))} min={1} max={50} step={1} />
+                    </div>
+                  </>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Warm-Up-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Tracking & Zustellung</CardTitle>
+                <CardDescription>Einstellungen für E-Mail-Tracking und Bounce-Handling.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Öffnungen tracken</p>
+                    <p className="text-sm text-muted-foreground">Tracking-Pixel in E-Mails einfügen.</p>
+                  </div>
+                  <Switch checked={campTrackOpens} onCheckedChange={setCampTrackOpens} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Klicks tracken</p>
+                    <p className="text-sm text-muted-foreground">Links in E-Mails umschreiben für Klick-Tracking.</p>
+                  </div>
+                  <Switch checked={campTrackClicks} onCheckedChange={setCampTrackClicks} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Abmeldelink einfügen</p>
+                    <p className="text-sm text-muted-foreground">Automatisch einen Abmeldelink am Ende jeder E-Mail einfügen.</p>
+                  </div>
+                  <Switch checked={campUnsubLink} onCheckedChange={setCampUnsubLink} />
+                </div>
+                <div className="grid gap-3">
+                  <Label>Bounce-Handling</Label>
+                  <Select value={campBounceAction} onValueChange={setCampBounceAction}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mark">Nur markieren</SelectItem>
+                      <SelectItem value="pause">Kampagne pausieren bei {">"}5% Bounces</SelectItem>
+                      <SelectItem value="remove">Lead automatisch entfernen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Tracking-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>E-Mail-Signatur</CardTitle>
+                <CardDescription>Standard-Signatur für alle Kampagnen-E-Mails.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <Label htmlFor="sig">Signatur</Label>
+                <textarea id="sig" rows={5}
+                  placeholder={"Mit freundlichen Grüßen\n{name}\n{position} | {company}"}
+                  value={campSignature} onChange={(e) => setCampSignature(e.target.value.slice(0, 2048))} maxLength={2048}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+                <p className="text-xs text-muted-foreground">Variablen: {"{name}"}, {"{position}"}, {"{company}"}, {"{website}"}</p>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Signatur gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
           {/* ═══ OUTREACH ═══ */}
           <TabsContent value="outreach" className="space-y-4">
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>LinkedIn Outreach</CardTitle>
                 <CardDescription>Automatisierung für Einladungen und Follow-Ups.</CardDescription>
@@ -633,7 +939,7 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
 
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>Nachrichtenvorlage</CardTitle>
                 <CardDescription>Template für LinkedIn-Einladungen. Variablen: {"{name}"}, {"{company}"}, {"{position}"}.</CardDescription>
@@ -653,41 +959,110 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
 
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+          </TabsContent>
+
+          {/* ═══ SEO ═══ */}
+          <TabsContent value="seo" className="space-y-4">
+            <Card className="shadow-xs">
               <CardHeader>
-                <CardTitle>E-Mail-Kampagnen</CardTitle>
-                <CardDescription>Standard-Werte für neue Kampagnen.</CardDescription>
+                <CardTitle>Blog-Post Einstellungen</CardTitle>
+                <CardDescription>Standard-Werte für automatisch generierte SEO-Posts.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6">
-                <div className="grid gap-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Tägliches Sendelimit</Label>
-                    <span className="text-sm tabular-nums text-muted-foreground">{campLimit} / Tag</span>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Auto-Publish</p>
+                    <p className="text-sm text-muted-foreground">Posts automatisch nach Erstellung veröffentlichen.</p>
                   </div>
-                  <Slider value={[campLimit]} onValueChange={([v]) => setCampLimit(Math.min(500, Math.max(10, v)))} min={10} max={500} step={10} />
+                  <Switch checked={seoAutoPublish} onCheckedChange={setSeoAutoPublish} />
                 </div>
-                <div className="grid gap-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Verzögerung</Label>
-                    <span className="text-sm tabular-nums text-muted-foreground">{campDelay} Min.</span>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-3">
+                    <Label>Standard-Kategorie</Label>
+                    <Input placeholder="z.B. Kanzlei-Marketing" value={seoDefaultCategory}
+                      onChange={(e) => setSeoDefaultCategory(e.target.value.slice(0, 100))} maxLength={100} />
                   </div>
-                  <Slider value={[campDelay]} onValueChange={([v]) => setCampDelay(Math.min(60, Math.max(1, v)))} min={1} max={60} step={1} />
-                </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="reply-to">Reply-To</Label>
-                  <Input id="reply-to" type="email" placeholder="info@ki-kanzlei.at" value={campReply}
-                    onChange={(e) => setCampReply(e.target.value.slice(0, 254))} maxLength={254} />
+                  <div className="grid gap-3">
+                    <Label>Sprache</Label>
+                    <Select value={seoLanguage} onValueChange={setSeoLanguage}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="de">Deutsch</SelectItem>
+                        <SelectItem value="en">Englisch</SelectItem>
+                        <SelectItem value="fr">Französisch</SelectItem>
+                        <SelectItem value="it">Italienisch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => toast.success("Kampagnen-Defaults gespeichert")}>Speichern</Button>
+                <Button onClick={() => toast.success("SEO-Einstellungen gespeichert")}>Speichern</Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-xs">
+              <CardHeader>
+                <CardTitle>Content-Richtlinien</CardTitle>
+                <CardDescription>Qualitätsstandards für generierte Inhalte.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Mindest-Wortanzahl</Label>
+                      <span className="text-sm tabular-nums text-muted-foreground">{seoMinWordCount}</span>
+                    </div>
+                    <Slider value={[seoMinWordCount]} onValueChange={([v]) => setSeoMinWordCount(Math.min(2000, Math.max(300, v)))} min={300} max={2000} step={100} />
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Maximale Wortanzahl</Label>
+                      <span className="text-sm tabular-nums text-muted-foreground">{seoMaxWordCount}</span>
+                    </div>
+                    <Slider value={[seoMaxWordCount]} onValueChange={([v]) => setSeoMaxWordCount(Math.min(5000, Math.max(500, v)))} min={500} max={5000} step={100} />
+                  </div>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Keywords pro Post</Label>
+                      <span className="text-sm tabular-nums text-muted-foreground">{seoTargetKeywords}</span>
+                    </div>
+                    <Slider value={[seoTargetKeywords]} onValueChange={([v]) => setSeoTargetKeywords(Math.min(10, Math.max(1, v)))} min={1} max={10} step={1} />
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Meta-Description Länge</Label>
+                      <span className="text-sm tabular-nums text-muted-foreground">{seoMetaDescLength} Zeichen</span>
+                    </div>
+                    <Slider value={[seoMetaDescLength]} onValueChange={([v]) => setSeoMetaDescLength(Math.min(320, Math.max(100, v)))} min={100} max={320} step={10} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Interne Verlinkung</p>
+                    <p className="text-sm text-muted-foreground">Automatisch interne Links zu anderen Posts einfügen.</p>
+                  </div>
+                  <Switch checked={seoInternalLinks} onCheckedChange={setSeoInternalLinks} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Beitragsbild generieren</p>
+                    <p className="text-sm text-muted-foreground">Automatisch ein Beitragsbild für jeden Post erstellen.</p>
+                  </div>
+                  <Switch checked={seoFeaturedImage} onCheckedChange={setSeoFeaturedImage} />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => toast.success("Content-Richtlinien gespeichert")}>Speichern</Button>
               </CardFooter>
             </Card>
           </TabsContent>
 
           {/* ═══ BENACHRICHTIGUNGEN ═══ */}
           <TabsContent value="notifications" className="space-y-4">
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>E-Mail-Benachrichtigungen</CardTitle>
                 <CardDescription>Wähle, worüber du per E-Mail informiert wirst.</CardDescription>
@@ -706,7 +1081,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-xs bg-gradient-to-t from-primary/5 to-card">
+            <Card className="shadow-xs">
               <CardHeader>
                 <CardTitle>Push-Benachrichtigungen</CardTitle>
                 <CardDescription>In-App Benachrichtigungen.</CardDescription>

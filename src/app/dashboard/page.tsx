@@ -219,7 +219,7 @@ export default async function DashboardOverview() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 *:data-[slot=card]:shadow-xs *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card">
+      <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 *:data-[slot=card]:shadow-xs">
         {kpis.map(({ label, value, trend, trendUp, Icon }) => (
           <Card key={label} className="@container/card">
             <CardHeader>
