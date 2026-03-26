@@ -72,14 +72,16 @@ interface LeadSearchFormProps {
   onSubmit: (values: SearchFormValues, source: SearchSource) => Promise<void>;
   isSearching: boolean;
   searchSource?: SearchSource | null;
+  defaultCountry?: string;
+  defaultRequireCeo?: boolean;
 }
 
-export function LeadSearchForm({ onSubmit, isSearching }: LeadSearchFormProps) {
+export function LeadSearchForm({ onSubmit, isSearching, defaultCountry, defaultRequireCeo }: LeadSearchFormProps) {
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchSchema),
     defaultValues: {
-      country: "AT", query: "", location: "", city: "",
-      company_type: "all", require_ceo: false,
+      country: defaultCountry || "AT", query: "", location: "", city: "",
+      company_type: "all", require_ceo: defaultRequireCeo ?? false,
     },
   });
 

@@ -173,6 +173,10 @@ export default function SettingsPage() {
   const [campDelay, setCampDelay] = useState(8);
   const [campReply, setCampReply] = useState("info@ki-kanzlei.at");
   const [notifs, setNotifs] = useState<NotifPrefs>({ email_new_lead: true, email_campaign_done: true, email_linkedin_reply: true, push_new_lead: false, push_campaign_error: true });
+  const [savingLeads, setSavingLeads] = useState(false);
+  const [savingCamp, setSavingCamp] = useState(false);
+  const [savingSeo, setSavingSeo] = useState(false);
+  const [savingNotifs, setSavingNotifs] = useState(false);
 
   /* ── Leads Settings ── */
   const [leadDefaultCountry, setLeadDefaultCountry] = useState("AT");
@@ -253,6 +257,59 @@ export default function SettingsPage() {
           const sp = d.linkedin_sender_profile;
           if (sp) { setCompanyName(sp.company ?? ""); setCompanyPosition(sp.position ?? ""); setCompanySpec(sp.specialization ?? ""); setCompanyTone(sp.tone ?? "professionell"); }
           if (d.linkedin_outreach_template) setOutreachTpl(d.linkedin_outreach_template);
+          /* ── Leads Settings ── */
+          const ls = d.lead_settings;
+          if (ls) {
+            if (ls.default_country) setLeadDefaultCountry(ls.default_country);
+            if (ls.default_status) setLeadDefaultStatus(ls.default_status);
+            if (ls.require_ceo !== undefined) setLeadRequireCeo(ls.require_ceo);
+            if (ls.require_email !== undefined) setLeadRequireEmail(ls.require_email);
+            if (ls.dedup !== undefined) setLeadDedup(ls.dedup);
+            if (ls.dedup_field) setLeadDedupField(ls.dedup_field);
+            if (ls.page_size) setLeadPageSize(ls.page_size);
+            if (ls.auto_score !== undefined) setLeadAutoScore(ls.auto_score);
+            if (ls.score_threshold) setLeadScoreThreshold(ls.score_threshold);
+          }
+          /* ── Campaign Settings ── */
+          const cs = d.campaign_settings;
+          if (cs) {
+            if (cs.daily_limit) setCampLimit(cs.daily_limit);
+            if (cs.delay_minutes) setCampDelay(cs.delay_minutes);
+            if (cs.reply_to) setCampReply(cs.reply_to);
+            if (cs.send_window) setCampSendWindow(cs.send_window);
+            if (cs.warmup !== undefined) setCampWarmup(cs.warmup);
+            if (cs.warmup_start) setCampWarmupStart(cs.warmup_start);
+            if (cs.warmup_increment) setCampWarmupIncrement(cs.warmup_increment);
+            if (cs.track_opens !== undefined) setCampTrackOpens(cs.track_opens);
+            if (cs.track_clicks !== undefined) setCampTrackClicks(cs.track_clicks);
+            if (cs.unsub_link !== undefined) setCampUnsubLink(cs.unsub_link);
+            if (cs.bounce_action) setCampBounceAction(cs.bounce_action);
+            if (cs.signature !== undefined) setCampSignature(cs.signature);
+          }
+          /* ── SEO Settings ── */
+          const ss = d.seo_settings;
+          if (ss) {
+            if (ss.auto_publish !== undefined) setSeoAutoPublish(ss.auto_publish);
+            if (ss.default_category) setSeoDefaultCategory(ss.default_category);
+            if (ss.min_word_count) setSeoMinWordCount(ss.min_word_count);
+            if (ss.max_word_count) setSeoMaxWordCount(ss.max_word_count);
+            if (ss.target_keywords) setSeoTargetKeywords(ss.target_keywords);
+            if (ss.meta_desc_length) setSeoMetaDescLength(ss.meta_desc_length);
+            if (ss.internal_links !== undefined) setSeoInternalLinks(ss.internal_links);
+            if (ss.featured_image !== undefined) setSeoFeaturedImage(ss.featured_image);
+            if (ss.language) setSeoLanguage(ss.language);
+          }
+          /* ── Notification Settings ── */
+          const ns = d.notification_settings;
+          if (ns) {
+            setNotifs({
+              email_new_lead: ns.email_new_lead ?? true,
+              email_campaign_done: ns.email_campaign_done ?? true,
+              email_linkedin_reply: ns.email_linkedin_reply ?? true,
+              push_new_lead: ns.push_new_lead ?? false,
+              push_campaign_error: ns.push_campaign_error ?? true,
+            });
+          }
         }
         if (user.email) { setUserEmail(user.email); setNewEmail(user.email); }
       } catch { toast.error("Einstellungen konnten nicht geladen werden"); }
@@ -342,6 +399,58 @@ export default function SettingsPage() {
       toast.success("Passwort geändert"); setCurPw(""); setNewPw(""); setConfirmPw("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Fehler"); }
     finally { setSavingPw(false); }
+  }
+
+  async function handleSaveLeadSettings() {
+    setSavingLeads(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_settings: { default_country: leadDefaultCountry, default_status: leadDefaultStatus, require_ceo: leadRequireCeo, require_email: leadRequireEmail, dedup: leadDedup, dedup_field: leadDedupField, page_size: leadPageSize, auto_score: leadAutoScore, score_threshold: leadScoreThreshold } }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Lead-Einstellungen gespeichert");
+    } catch { toast.error("Fehler beim Speichern"); }
+    finally { setSavingLeads(false); }
+  }
+
+  async function handleSaveCampaignSettings() {
+    setSavingCamp(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_settings: { daily_limit: campLimit, delay_minutes: campDelay, reply_to: sanitize(campReply), send_window: campSendWindow, warmup: campWarmup, warmup_start: campWarmupStart, warmup_increment: campWarmupIncrement, track_opens: campTrackOpens, track_clicks: campTrackClicks, unsub_link: campUnsubLink, bounce_action: campBounceAction, signature: sanitize(campSignature) } }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Kampagnen-Einstellungen gespeichert");
+    } catch { toast.error("Fehler beim Speichern"); }
+    finally { setSavingCamp(false); }
+  }
+
+  async function handleSaveSeoSettings() {
+    setSavingSeo(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seo_settings: { auto_publish: seoAutoPublish, default_category: sanitize(seoDefaultCategory), min_word_count: seoMinWordCount, max_word_count: seoMaxWordCount, target_keywords: seoTargetKeywords, meta_desc_length: seoMetaDescLength, internal_links: seoInternalLinks, featured_image: seoFeaturedImage, language: seoLanguage } }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("SEO-Einstellungen gespeichert");
+    } catch { toast.error("Fehler beim Speichern"); }
+    finally { setSavingSeo(false); }
+  }
+
+  async function handleSaveNotifSettings() {
+    setSavingNotifs(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notification_settings: notifs }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Benachrichtigungen gespeichert");
+    } catch { toast.error("Fehler beim Speichern"); }
+    finally { setSavingNotifs(false); }
   }
 
   function SecretInput({ id, value, placeholder, onChange }: { id: string; value: string; placeholder: string; onChange: (v: string) => void }) {
@@ -679,7 +788,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => toast.success("Lead-Einstellungen gespeichert")}>Speichern</Button>
+                <Button onClick={handleSaveLeadSettings} disabled={savingLeads}>{savingLeads && <Loader2 className="mr-2 size-4 animate-spin" />}Speichern</Button>
               </CardFooter>
             </Card>
 
@@ -793,7 +902,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => toast.success("Kampagnen-Defaults gespeichert")}>Speichern</Button>
+                <Button onClick={handleSaveCampaignSettings} disabled={savingCamp}>{savingCamp && <Loader2 className="mr-2 size-4 animate-spin" />}Speichern</Button>
               </CardFooter>
             </Card>
 
@@ -997,7 +1106,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => toast.success("SEO-Einstellungen gespeichert")}>Speichern</Button>
+                <Button onClick={handleSaveSeoSettings} disabled={savingSeo}>{savingSeo && <Loader2 className="mr-2 size-4 animate-spin" />}Speichern</Button>
               </CardFooter>
             </Card>
 
@@ -1098,7 +1207,7 @@ export default function SettingsPage() {
                 ))}
               </CardContent>
               <CardFooter>
-                <Button onClick={() => toast.success("Benachrichtigungen gespeichert")}>Speichern</Button>
+                <Button onClick={handleSaveNotifSettings} disabled={savingNotifs}>{savingNotifs && <Loader2 className="mr-2 size-4 animate-spin" />}Speichern</Button>
               </CardFooter>
             </Card>
           </TabsContent>

@@ -44,6 +44,8 @@ export type LeadStats = Record<LeadStatus, number> & { total: number };
 /** Optionale Zusatzfelder beim Aktualisieren des Search-Job-Status */
 export interface SearchJobStatusExtras {
   results_count?: number;
+  total_count?: number | null;
+  estimated_end_at?: string | null;
   error_message?: string | null;
   started_at?: string | null;
   completed_at?: string | null;

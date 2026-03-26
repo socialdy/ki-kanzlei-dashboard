@@ -12,6 +12,7 @@ import {
   Square,
   Loader2,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -83,11 +84,13 @@ interface SearchJobsListProps {
   onJobCancelled?: (jobId: string) => void;
   onJobDeleted?: (jobId: string) => void;
   onBulkDeleted?: (jobIds: string[]) => void;
+  onJobRetried?: (updatedJob: SearchJob) => void;
 }
 
-export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, onBulkDeleted }: SearchJobsListProps) {
+export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, onBulkDeleted, onJobRetried }: SearchJobsListProps) {
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -168,6 +171,27 @@ export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, on
     }
   }
 
+  async function handleRetry(job: SearchJob) {
+    setRetryingIds((prev) => new Set(prev).add(job.id));
+    try {
+      const res = await fetch(`/api/leads/search/${job.id}/retry`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      toast.success(`Suche "${job.query}" wird wiederholt`);
+      onJobRetried?.(json.data as SearchJob);
+    } catch {
+      toast.error("Wiederholen fehlgeschlagen");
+    } finally {
+      setRetryingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -227,73 +251,88 @@ export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, on
                 return (
                   <div
                     key={job.id}
-                    className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 hover:bg-muted/50 transition-colors"
                   >
-                    {/* Icon — all in brand blue */}
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                        job.status === "failed" ? "bg-muted" : "bg-primary/10",
-                      )}
-                    >
-                      {isActive ? (
-                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                      ) : job.status === "completed" ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
+                    {/* Top row: Icon + Content (+ Badge on mobile) */}
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      {/* Icon */}
+                      <div
+                        className={cn(
+                          "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                          job.status === "failed" ? "bg-muted" : "bg-primary/10",
+                        )}
+                      >
+                        {isActive ? (
+                          <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                        ) : job.status === "completed" ? (
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">
-                          {job.query}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          in {job.location}
-                          {job.country && ` (${job.country})`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatTime(job.created_at)}
-                        </span>
-                        {job.results_count > 0 && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {job.results_count} Ergebnisse
-                            {job.total_count ? ` / ${job.total_count} gesamt` : ""}
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">
+                            {job.query}
                           </span>
-                        )}
-                        {etaText && (
-                          <span className="text-xs text-primary/70">
-                            {etaText}
+                          <span className="text-xs text-muted-foreground">
+                            in {job.location}
+                            {job.country && ` (${job.country})`}
                           </span>
-                        )}
-                      </div>
-                      {/* Progress bar for running jobs */}
-                      {job.status === "running" && (
-                        <Progress
-                          value={progressPercent}
-                          className="h-1 mt-2 w-full max-w-xs"
-                        />
-                      )}
-                      {/* Error message for failed jobs */}
-                      {job.status === "failed" && job.error_message && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="text-xs text-muted-foreground truncate">
-                            {job.error_message}
-                          </span>
+                          {/* Badge — mobile only inline */}
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[11px] font-medium px-2 py-0.5 gap-1.5 sm:hidden",
+                              statusCfg.className,
+                              job.status === "running" && "animate-pulse",
+                            )}
+                          >
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusCfg.dot)} />
+                            {statusCfg.label}
+                          </Badge>
                         </div>
-                      )}
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatTime(job.created_at)}
+                          </span>
+                          {job.results_count > 0 && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {job.results_count} Ergebnisse
+                              {job.total_count ? ` / ${job.total_count} gesamt` : ""}
+                            </span>
+                          )}
+                          {etaText && (
+                            <span className="text-xs text-primary/70">
+                              {etaText}
+                            </span>
+                          )}
+                        </div>
+                        {/* Progress bar for running jobs */}
+                        {job.status === "running" && (
+                          <Progress
+                            value={progressPercent}
+                            className="h-1 mt-2 w-full max-w-xs"
+                          />
+                        )}
+                        {/* Error message for failed jobs */}
+                        {job.status === "failed" && job.error_message && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-xs text-muted-foreground truncate">
+                              {job.error_message}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Actions + Badge */}
+                    <div className="flex items-center gap-2 shrink-0 pl-13 sm:pl-0">
                       {isActive && (
                         <Button
                           variant="ghost"
@@ -308,6 +347,22 @@ export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, on
                             <Square className="h-3 w-3 mr-1 fill-current" />
                           )}
                           Stopp
+                        </Button>
+                      )}
+                      {!isActive && job.status === "failed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                          onClick={() => handleRetry(job)}
+                          disabled={retryingIds.has(job.id)}
+                        >
+                          {retryingIds.has(job.id) ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                          )}
+                          Wiederholen
                         </Button>
                       )}
                       {!isActive && (
@@ -329,7 +384,7 @@ export function SearchJobsList({ jobs, loading, onJobCancelled, onJobDeleted, on
                       <Badge
                         variant="secondary"
                         className={cn(
-                          "text-[11px] font-medium px-2 py-0.5 gap-1.5",
+                          "text-[11px] font-medium px-2 py-0.5 gap-1.5 hidden sm:inline-flex",
                           statusCfg.className,
                           job.status === "running" && "animate-pulse",
                         )}

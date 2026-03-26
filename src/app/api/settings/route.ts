@@ -36,6 +36,18 @@ function sanitizeNumber(value: unknown, min: number, max: number, fallback: numb
   return Math.max(min, Math.min(max, Math.round(num)));
 }
 
+function sanitizeJsonb(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return undefined;
+  const obj = value as Record<string, unknown>;
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === "string") clean[k] = v.slice(0, 2048).replace(/[<>]/g, "").replace(/javascript:/gi, "").trim();
+    else if (typeof v === "boolean" || typeof v === "number") clean[k] = v;
+  }
+  return clean;
+}
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -107,6 +119,10 @@ export async function PATCH(request: NextRequest) {
           }
         : undefined,
       linkedin_outreach_template: sanitizeString(body.linkedin_outreach_template, 4096),
+      lead_settings: sanitizeJsonb(body.lead_settings),
+      campaign_settings: sanitizeJsonb(body.campaign_settings),
+      seo_settings: sanitizeJsonb(body.seo_settings),
+      notification_settings: sanitizeJsonb(body.notification_settings),
     });
 
     return NextResponse.json({ data: settings });

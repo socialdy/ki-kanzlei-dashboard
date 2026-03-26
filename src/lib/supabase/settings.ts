@@ -11,6 +11,53 @@ export interface LinkedInSenderProfile {
   tone?: string;
 }
 
+export interface LeadSettings {
+  default_country?: string;
+  default_status?: string;
+  require_ceo?: boolean;
+  require_email?: boolean;
+  dedup?: boolean;
+  dedup_field?: string;
+  page_size?: number;
+  auto_score?: boolean;
+  score_threshold?: number;
+}
+
+export interface CampaignSettings {
+  daily_limit?: number;
+  delay_minutes?: number;
+  reply_to?: string;
+  send_window?: string;
+  warmup?: boolean;
+  warmup_start?: number;
+  warmup_increment?: number;
+  track_opens?: boolean;
+  track_clicks?: boolean;
+  unsub_link?: boolean;
+  bounce_action?: string;
+  signature?: string;
+}
+
+export interface SeoSettings {
+  auto_publish?: boolean;
+  default_category?: string;
+  min_word_count?: number;
+  max_word_count?: number;
+  target_keywords?: number;
+  meta_desc_length?: number;
+  internal_links?: boolean;
+  featured_image?: boolean;
+  language?: string;
+}
+
+export interface NotificationSettings {
+  email_new_lead?: boolean;
+  email_campaign_done?: boolean;
+  email_linkedin_reply?: boolean;
+  push_new_lead?: boolean;
+  push_campaign_error?: boolean;
+}
+
 export interface UserSettings {
   user_id: string;
   n8n_webhook_url: string | null;
@@ -34,6 +81,11 @@ export interface UserSettings {
   linkedin_follow_up_days: number | null;
   linkedin_sender_profile: LinkedInSenderProfile | null;
   linkedin_outreach_template: string | null;
+  /* Grouped settings */
+  lead_settings: LeadSettings | null;
+  campaign_settings: CampaignSettings | null;
+  seo_settings: SeoSettings | null;
+  notification_settings: NotificationSettings | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +111,10 @@ export type UserSettingsUpdate = Partial<
     | "linkedin_follow_up_days"
     | "linkedin_sender_profile"
     | "linkedin_outreach_template"
+    | "lead_settings"
+    | "campaign_settings"
+    | "seo_settings"
+    | "notification_settings"
   >
 >;
 

@@ -110,6 +110,8 @@ export default function LeadScrapingPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteIds, setDeleteIds]   = useState<string[]>([]);
   const [crmSettings, setCrmSettings] = useState<Record<string, string | null>>({});
+  const [leadSettings, setLeadSettings] = useState<{ default_country?: string; default_status?: string; require_ceo?: boolean; require_email?: boolean; page_size?: number } | null>(null);
+  const effectivePageSize = leadSettings?.page_size || PAGE_SIZE;
 
   /* ── Filter State ── */
   const [filterSearch, setFilterSearch]     = useState("");
@@ -147,7 +149,10 @@ export default function LeadScrapingPage() {
         const res = await fetch("/api/settings");
         if (!res.ok) return;
         const json = await res.json();
-        if (json.data) setCrmSettings(json.data);
+        if (json.data) {
+          setCrmSettings(json.data);
+          if (json.data.lead_settings) setLeadSettings(json.data.lead_settings);
+        }
       } catch { /* silent */ }
     })();
   }, []);
@@ -182,7 +187,7 @@ export default function LeadScrapingPage() {
   const fetchLeads = useCallback(async (page = 1) => {
     setLeadsLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ page: String(page), limit: String(effectivePageSize) });
       if (filterSearch) params.set("search", filterSearch);
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterIndustry) params.set("industry", filterIndustry);
@@ -204,7 +209,7 @@ export default function LeadScrapingPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filterSearch, filterStatus, filterIndustry, filterLegalForm, filterCity, filterCountry, sorting]);
+  }, [filterSearch, filterStatus, filterIndustry, filterLegalForm, filterCity, filterCountry, sorting, effectivePageSize]);
 
   const fetchJobs = useCallback(async () => {
     setJobsLoading(true);
@@ -583,7 +588,7 @@ export default function LeadScrapingPage() {
   });
 
   /* ── Derived ── */
-  const totalPages     = Math.max(1, Math.ceil(leadsCount / PAGE_SIZE));
+  const totalPages     = Math.max(1, Math.ceil(leadsCount / effectivePageSize));
   const activeJobsCount = searchJobs.filter(
     (j) => j.status === "pending" || j.status === "running",
   ).length;
@@ -603,7 +608,7 @@ export default function LeadScrapingPage() {
             Finde und verwalte potenzielle Kunden. Suche nach Branche, Region oder Ort.
           </p>
         </div>
-        <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} searchSource={searchSource} />
+        <LeadSearchForm onSubmit={onSearchSubmit} isSearching={isSearching} searchSource={searchSource} defaultCountry={leadSettings?.default_country} defaultRequireCeo={leadSettings?.require_ceo} />
       </div>
 
       {/* Tabs */}
@@ -652,6 +657,11 @@ export default function LeadScrapingPage() {
             onBulkDeleted={(jobIds) => {
               const deletedSet = new Set(jobIds);
               setSearchJobs((prev) => prev.filter((j) => !deletedSet.has(j.id)));
+            }}
+            onJobRetried={(updatedJob) => {
+              setSearchJobs((prev) =>
+                prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)),
+              );
             }}
           />
         </TabsContent>
